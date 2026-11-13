@@ -1,0 +1,290 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  DRIVER
+  COMMUTER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum VehicleStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum RouteStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ScheduleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum TripStatus {
+  SCHEDULED
+  BOARDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+  CANCELLED
+}
+
+enum MaintenanceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id                 Int                 @id @default(autoincrement())
+  fullName           String              @db.VarChar(150)
+  email              String              @unique @db.VarChar(191)
+  phoneNumber        String?             @db.VarChar(30)
+  passwordHash       String              @db.VarChar(255)
+  role               UserRole            @default(COMMUTER)
+  status             UserStatus          @default(ACTIVE)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  driverProfile      DriverProfile?
+  drivenTrips        Trip[]              @relation("TripDriver")
+  vehicleAssignments VehicleAssignment[] @relation("AssignmentDriver")
+  notifications      Notification[]
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model DriverProfile {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @unique
+  licenceNumber String   @unique @db.VarChar(100)
+  licenceExpiry DateTime @db.Date
+  address       String?  @db.VarChar(255)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@map("driver_profiles")
+}
+
+model Vehicle {
+  id                 Int                 @id @default(autoincrement())
+  registrationNumber String              @unique @db.VarChar(50)
+  vehicleName        String?             @db.VarChar(100)
+  manufacturer       String?             @db.VarChar(100)
+  model              String?             @db.VarChar(100)
+  vehicleType        String              @db.VarChar(50)
+  capacity           Int
+  manufactureYear    Int?
+  description        String?
+  status             VehicleStatus       @default(ACTIVE)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  trips              Trip[]
+  assignments        VehicleAssignment[]
+  locations          VehicleLocation[]
+  maintenanceRecords MaintenanceRecord[]
+
+  @@index([status])
+  @@map("vehicles")
+}
+
+model Route {
+  id                Int         @id @default(autoincrement())
+  name              String      @db.VarChar(150)
+  routeCode         String?     @unique @db.VarChar(50)
+  origin            String      @db.VarChar(150)
+  destination       String      @db.VarChar(150)
+  description       String?
+  distanceKm        Decimal?    @db.Decimal(10, 2)
+  estimatedDuration Int?
+  status            RouteStatus @default(ACTIVE)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  routeStops        RouteStop[]
+  schedules         Schedule[]
+  trips             Trip[]
+
+  @@index([status])
+  @@map("routes")
+}
+
+model Stop {
+  id          Int         @id @default(autoincrement())
+  name        String      @db.VarChar(150)
+  description String?
+  latitude    Decimal     @db.Decimal(10, 7)
+  longitude   Decimal     @db.Decimal(10, 7)
+  createdAt   DateTime    @default(now())
+  routeStops  RouteStop[]
+
+  @@map("stops")
+}
+
+model RouteStop {
+  id                        Int      @id @default(autoincrement())
+  routeId                   Int
+  stopId                    Int
+  sequence                  Int
+  estimatedMinutesFromStart Int?
+  route                     Route    @relation(fields: [routeId], references: [id])
+  stop                      Stop     @relation(fields: [stopId], references: [id])
+
+  @@unique([routeId, sequence])
+  @@index([routeId, stopId])
+  @@map("route_stops")
+}
+
+model Schedule {
+  id                Int            @id @default(autoincrement())
+  routeId           Int
+  departureTime     DateTime       @db.Time(0)
+  estimatedDuration Int
+  effectiveFrom     DateTime       @db.Date
+  effectiveUntil    DateTime?      @db.Date
+  status            ScheduleStatus @default(ACTIVE)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  route             Route          @relation(fields: [routeId], references: [id])
+  days              ScheduleDay[]
+  trips             Trip[]
+
+  @@index([routeId, departureTime, status])
+  @@map("schedules")
+}
+
+model ScheduleDay {
+  id         Int       @id @default(autoincrement())
+  scheduleId Int
+  dayOfWeek  DayOfWeek
+  schedule   Schedule  @relation(fields: [scheduleId], references: [id])
+
+  @@unique([scheduleId, dayOfWeek])
+  @@index([scheduleId])
+  @@map("schedule_days")
+}
+
+model Trip {
+  id                 Int        @id @default(autoincrement())
+  tripCode           String?    @unique @db.VarChar(50)
+  scheduleId         Int
+  routeId            Int
+  vehicleId          Int
+  driverId           Int
+  scheduledDeparture DateTime
+  scheduledArrival   DateTime
+  actualDeparture    DateTime?
+  actualArrival      DateTime?
+  status             TripStatus @default(SCHEDULED)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  schedule           Schedule   @relation(fields: [scheduleId], references: [id])
+  route              Route      @relation(fields: [routeId], references: [id])
+  vehicle            Vehicle    @relation(fields: [vehicleId], references: [id])
+  driver             User       @relation("TripDriver", fields: [driverId], references: [id])
+  locations          VehicleLocation[]
+
+  @@index([driverId])
+  @@index([vehicleId])
+  @@index([routeId])
+  @@index([status])
+  @@index([scheduledDeparture])
+  @@map("trips")
+}
+
+model VehicleAssignment {
+  id         Int       @id @default(autoincrement())
+  vehicleId  Int
+  driverId   Int
+  assignedAt DateTime
+  endedAt    DateTime?
+  createdAt  DateTime  @default(now())
+  vehicle    Vehicle   @relation(fields: [vehicleId], references: [id])
+  driver     User      @relation("AssignmentDriver", fields: [driverId], references: [id])
+
+  @@index([vehicleId, endedAt])
+  @@index([driverId, endedAt])
+  @@map("vehicle_assignments")
+}
+
+model VehicleLocation {
+  id          BigInt    @id @default(autoincrement())
+  vehicleId   Int
+  tripId      Int?
+  latitude    Decimal   @db.Decimal(10, 7)
+  longitude   Decimal   @db.Decimal(10, 7)
+  speed       Decimal?  @db.Decimal(6, 2)
+  heading     Decimal?  @db.Decimal(6, 2)
+  isSimulated Boolean   @default(true)
+  recordedAt  DateTime
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id])
+  trip        Trip?     @relation(fields: [tripId], references: [id])
+
+  @@index([vehicleId, recordedAt])
+  @@index([tripId])
+  @@map("vehicle_locations")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String   @db.VarChar(150)
+  message   String
+  type      String   @db.VarChar(50)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
+model MaintenanceRecord {
+  id              Int               @id @default(autoincrement())
+  vehicleId       Int
+  description     String
+  maintenanceDate DateTime          @db.Date
+  cost            Decimal?          @db.Decimal(10, 2)
+  status          MaintenanceStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  vehicle         Vehicle           @relation(fields: [vehicleId], references: [id])
+
+  @@index([vehicleId, maintenanceDate])
+  @@map("maintenance_records")
+}
+
+model SystemSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique @db.VarChar(100)
+  value       String?
+  description String?  @db.VarChar(255)
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}

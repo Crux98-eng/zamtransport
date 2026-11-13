@@ -1,0 +1,38 @@
+{
+  "name": "zambia_transport",
+  "version": "1.0.0",
+  "description": "this is the morden zambia transportation tracking system",
+  "keywords": [
+    "crux"
+  ],
+  "homepage": "https://github.com/Crux98-eng/zamtransport#readme",
+  "bugs": {
+    "url": "https://github.com/Crux98-eng/zamtransport/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Crux98-eng/zamtransport.git"
+  },
+  "license": "MIT",
+  "author": "eric",
+  "type": "commonjs",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "node prisma/seed.js",
+    "db:verify": "node scripts/verify-database.js",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "prisma": "6.19.3"
+  }
+}
