@@ -14,7 +14,9 @@ enum UserRole {
 }
 
 enum UserStatus {
+  PENDING
   ACTIVE
+  REJECTED
   INACTIVE
   SUSPENDED
 }
@@ -67,17 +69,68 @@ model User {
   phoneNumber        String?             @db.VarChar(30)
   passwordHash       String              @db.VarChar(255)
   role               UserRole            @default(COMMUTER)
-  status             UserStatus          @default(ACTIVE)
+  status             UserStatus          @default(PENDING)
+  approvedAt         DateTime?
+  approvedById       Int?
+  rejectedAt         DateTime?
+  rejectedById       Int?
+  rejectionReason    String?
+  suspendedAt        DateTime?
+  suspendedById      Int?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   driverProfile      DriverProfile?
   drivenTrips        Trip[]              @relation("TripDriver")
   vehicleAssignments VehicleAssignment[] @relation("AssignmentDriver")
   notifications      Notification[]
+  approvedUsers      User[]              @relation("ApprovedBy")
+  approvedBy         User?               @relation("ApprovedBy", fields: [approvedById], references: [id])
+  rejectedUsers      User[]              @relation("RejectedBy")
+  rejectedBy         User?               @relation("RejectedBy", fields: [rejectedById], references: [id])
+  suspendedUsers     User[]              @relation("SuspendedBy")
+  suspendedBy        User?               @relation("SuspendedBy", fields: [suspendedById], references: [id])
+  refreshTokens      RefreshToken[]
+  auditEvents        AuditLog[]          @relation("AuditActor")
+  auditTargets       AuditLog[]          @relation("AuditTarget")
 
   @@index([role])
   @@index([status])
   @@map("users")
+}
+
+model RefreshToken {
+  id               String        @id @default(cuid())
+  tokenHash        String        @unique @db.VarChar(64)
+  userId           Int
+  expiresAt        DateTime
+  createdAt        DateTime      @default(now())
+  revokedAt        DateTime?
+  revokedReason    String?       @db.VarChar(100)
+  replacedByTokenId String?      @unique
+  user             User          @relation(fields: [userId], references: [id])
+  replacedBy       RefreshToken? @relation("TokenRotation", fields: [replacedByTokenId], references: [id])
+  replaces         RefreshToken? @relation("TokenRotation")
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      Int?
+  targetUserId Int?
+  action       String   @db.VarChar(100)
+  metadata     Json?
+  ipAddress    String?  @db.VarChar(64)
+  createdAt    DateTime @default(now())
+  actor        User?    @relation("AuditActor", fields: [actorId], references: [id])
+  targetUser   User?    @relation("AuditTarget", fields: [targetUserId], references: [id])
+
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
 }
 
 model DriverProfile {

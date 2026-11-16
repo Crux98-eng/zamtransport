@@ -1,0 +1,2 @@
+-- No-op placeholder for the interrupted migration attempt.
+-- The actual authentication tables are applied by the following migration.

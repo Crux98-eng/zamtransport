@@ -1,0 +1,34 @@
+process.env.ACCESS_TOKEN_SECRET = 'a-very-long-test-access-secret-value';
+process.env.REFRESH_TOKEN_SECRET = 'a-very-long-test-refresh-secret-value';
+
+const assert = require('node:assert/strict');
+const test = require('node:test');
+const { registerSchema } = require('../../src/validators/auth');
+const { signAccessToken, verifyAccessToken, createRefreshToken, verifyRefreshToken, hashToken } = require('../../src/utils/tokens');
+
+const validRegistration = { fullName: 'Jane Commuter', email: 'JANE@example.com', password: 'Correct-Horse-7!', confirmPassword: 'Correct-Horse-7!' };
+
+test('registration validation normalizes email and accepts a strong password', () => {
+  const result = registerSchema.parse(validRegistration);
+  assert.equal(result.email, 'jane@example.com');
+});
+
+test('registration rejects privileged role and active-status mass assignment', () => {
+  assert.throws(() => registerSchema.parse({ ...validRegistration, role: 'ADMIN' }));
+  assert.throws(() => registerSchema.parse({ ...validRegistration, status: 'ACTIVE' }));
+});
+
+test('registration rejects weak or mismatched passwords', () => {
+  assert.throws(() => registerSchema.parse({ ...validRegistration, password: 'short', confirmPassword: 'short' }));
+  assert.throws(() => registerSchema.parse({ ...validRegistration, confirmPassword: 'Different-Password-7!' }));
+});
+
+test('access and refresh tokens carry minimal identity claims', () => {
+  const user = { id: 42 };
+  const access = signAccessToken(user);
+  const refresh = createRefreshToken(user);
+  assert.equal(verifyAccessToken(access).sub, '42');
+  assert.equal(verifyRefreshToken(refresh.token).sub, '42');
+  assert.equal(hashToken(refresh.token).length, 64);
+  assert.notEqual(refresh.token, refresh.tokenHash);
+});

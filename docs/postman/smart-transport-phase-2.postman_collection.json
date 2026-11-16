@@ -1,0 +1,21 @@
+{
+  "info": {
+    "name": "Smart Transport - Phase 2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "routeId", "value": "1" },
+    { "key": "stopId", "value": "1" }
+  ],
+  "item": [
+    { "name": "Public routes", "request": { "method": "GET", "url": "{{baseUrl}}/routes" } },
+    { "name": "Public route detail", "request": { "method": "GET", "url": "{{baseUrl}}/routes/{{routeId}}" } },
+    { "name": "Public stops", "request": { "method": "GET", "url": "{{baseUrl}}/stops" } },
+    { "name": "Admin vehicles", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/vehicles" } },
+    { "name": "Admin drivers", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/drivers" } },
+    { "name": "Pending users", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/users/pending" } },
+    { "name": "Assignments", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/assignments" } }
+  ]
+}

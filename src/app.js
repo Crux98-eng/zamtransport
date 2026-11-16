@@ -1,29 +1,24 @@
+const cors = require('cors');
 const express = require('express');
+const helmet = require('helmet');
+const { rateLimit } = require('express-rate-limit');
+const authRoutes = require('./routes/v1/auth');
+const adminUserRoutes = require('./routes/v1/admin-users');
+const { adminRouter: adminTransportRoutes, publicRouter: publicTransportRoutes } = require('./routes/v1/transport');
+const { errorHandler, notFound } = require('./middlewares/error-handler');
 
 const app = express();
-
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map((value) => value.trim()).filter(Boolean);
 app.disable('x-powered-by');
-app.use(express.json({ limit: '1mb' }));
-
-app.get('/health', (_request, response) => {
-  response.status(200).json({
-    status: 'ok',
-    service: 'zambia-transport-api',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-app.use((_request, response) => {
-  response.status(404).json({
-    error: 'Not Found',
-  });
-});
-
-app.use((error, _request, response, _next) => {
-  console.error(error);
-  response.status(500).json({
-    error: 'Internal Server Error',
-  });
-});
-
+app.use(helmet());
+app.use(cors({ origin(origin, callback) { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error('Origin is not allowed by CORS.')); }, credentials: false }));
+app.use(express.json({ limit: '100kb' }));
+const authRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { success: false, message: 'Too many authentication attempts. Please try again later.', code: 'AUTH_RATE_LIMITED' } });
+app.get('/health', (_request, response) => response.json({ status: 'ok', service: 'zambia-transport-api', timestamp: new Date().toISOString() }));
+app.use('/api/v1/auth', authRateLimit, authRoutes);
+app.use('/api/v1/admin/users', adminUserRoutes);
+app.use('/api/v1/admin', adminTransportRoutes);
+app.use('/api/v1', publicTransportRoutes);
+app.use(notFound);
+app.use(errorHandler);
 module.exports = app;

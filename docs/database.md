@@ -20,14 +20,16 @@ To seed the initial administrator, set a strong password only for the command
 being run:
 
 ```powershell
-$env:SEED_ADMIN_PASSWORD = 'use-a-strong-unique-password'
+$env:ADMIN_NAME = 'System Administrator'
+$env:ADMIN_EMAIL = 'admin@example.com'
+$env:ADMIN_PASSWORD = 'use-a-strong-unique-password'
 npm run db:seed
-Remove-Item Env:SEED_ADMIN_PASSWORD
+Remove-Item Env:ADMIN_NAME,Env:ADMIN_EMAIL,Env:ADMIN_PASSWORD
 ```
 
-The administrator is created at `admin@zambiatransport.local`. Without
-`SEED_ADMIN_PASSWORD`, the seed script only creates the `application.timezone`
-setting (`Africa/Lusaka`).
+The administrator is created at `ADMIN_EMAIL`. Without the three `ADMIN_*`
+variables, the seed script only creates the `application.timezone` setting
+(`Africa/Lusaka`).
 
 ## Application-enforced rules
 
