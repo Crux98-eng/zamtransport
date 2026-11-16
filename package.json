@@ -18,13 +18,14 @@
   "type": "commonjs",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "nodemon  src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "node prisma/seed.js",
+    "db:bootstrap-admin": "node prisma/seed.js",
     "db:verify": "node scripts/verify-database.js",
     "api:smoke": "node scripts/smoke-api.js",
     "db:studio": "prisma studio"

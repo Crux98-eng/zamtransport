@@ -14,6 +14,8 @@ app.use(helmet());
 app.use(cors({ origin(origin, callback) { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error('Origin is not allowed by CORS.')); }, credentials: false }));
 app.use(express.json({ limit: '100kb' }));
 const authRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { success: false, message: 'Too many authentication attempts. Please try again later.', code: 'AUTH_RATE_LIMITED' } });
+app.get('/', (_request, response) => response.json({ success: true, service: 'zambia-transport-api', apiBase: '/api/v1' }));
+app.get('/api/v1', (_request, response) => response.json({ success: true, service: 'zambia-transport-api', health: '/health' }));
 app.get('/health', (_request, response) => response.json({ status: 'ok', service: 'zambia-transport-api', timestamp: new Date().toISOString() }));
 app.use('/api/v1/auth', authRateLimit, authRoutes);
 app.use('/api/v1/admin/users', adminUserRoutes);

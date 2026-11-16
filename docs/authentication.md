@@ -39,3 +39,18 @@ Remove-Item Env:ADMIN_NAME,Env:ADMIN_EMAIL,Env:ADMIN_PASSWORD
 ```
 
 The seed script exits without changing an existing administrator.
+`npm.cmd run db:bootstrap-admin` is an explicit alias for the same one-time
+bootstrap operation. It fails when the required credentials are missing rather
+than silently creating no administrator.
+
+To deliberately reset the existing bootstrap administrator password, set the
+explicit flag for one command:
+
+```powershell
+$env:RESET_ADMIN_PASSWORD = 'true'
+npm.cmd run db:bootstrap-admin
+Remove-Item Env:RESET_ADMIN_PASSWORD
+```
+
+This uses the current `ADMIN_PASSWORD`, revokes existing refresh sessions, and
+records an audit event.

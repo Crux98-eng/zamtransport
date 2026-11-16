@@ -11,6 +11,8 @@ async function main() {
     const port = server.address().port;
     const baseUrl = `http://127.0.0.1:${port}`;
     const checks = [
+      ['/', 200],
+      ['/api/v1', 200],
       ['/health', 200],
       ['/api/v1/routes', 200],
       ['/api/v1/admin/vehicles', 401],
