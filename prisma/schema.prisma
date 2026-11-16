@@ -89,6 +89,9 @@ model User {
   rejectedBy         User?               @relation("RejectedBy", fields: [rejectedById], references: [id])
   suspendedUsers     User[]              @relation("SuspendedBy")
   suspendedBy        User?               @relation("SuspendedBy", fields: [suspendedById], references: [id])
+  cancelledTrips     Trip[]              @relation("TripCancelledBy")
+  tripAssignments    TripAssignment[]    @relation("TripAssignmentDriver")
+  tripStatusChanges  TripStatusHistory[] @relation("TripStatusActor")
   refreshTokens      RefreshToken[]
   auditEvents        AuditLog[]          @relation("AuditActor")
   auditTargets       AuditLog[]          @relation("AuditTarget")
@@ -99,17 +102,17 @@ model User {
 }
 
 model RefreshToken {
-  id               String        @id @default(cuid())
-  tokenHash        String        @unique @db.VarChar(64)
-  userId           Int
-  expiresAt        DateTime
-  createdAt        DateTime      @default(now())
-  revokedAt        DateTime?
-  revokedReason    String?       @db.VarChar(100)
-  replacedByTokenId String?      @unique
-  user             User          @relation(fields: [userId], references: [id])
-  replacedBy       RefreshToken? @relation("TokenRotation", fields: [replacedByTokenId], references: [id])
-  replaces         RefreshToken? @relation("TokenRotation")
+  id                String        @id @default(cuid())
+  tokenHash         String        @unique @db.VarChar(64)
+  userId            Int
+  expiresAt         DateTime
+  createdAt         DateTime      @default(now())
+  revokedAt         DateTime?
+  revokedReason     String?       @db.VarChar(100)
+  replacedByTokenId String?       @unique
+  user              User          @relation(fields: [userId], references: [id])
+  replacedBy        RefreshToken? @relation("TokenRotation", fields: [replacedByTokenId], references: [id])
+  replaces          RefreshToken? @relation("TokenRotation")
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
@@ -163,6 +166,7 @@ model Vehicle {
   assignments        VehicleAssignment[]
   locations          VehicleLocation[]
   maintenanceRecords MaintenanceRecord[]
+  tripAssignments    TripAssignment[]
 
   @@index([status])
   @@map("vehicles")
@@ -201,13 +205,13 @@ model Stop {
 }
 
 model RouteStop {
-  id                        Int      @id @default(autoincrement())
+  id                        Int   @id @default(autoincrement())
   routeId                   Int
   stopId                    Int
   sequence                  Int
   estimatedMinutesFromStart Int?
-  route                     Route    @relation(fields: [routeId], references: [id])
-  stop                      Stop     @relation(fields: [stopId], references: [id])
+  route                     Route @relation(fields: [routeId], references: [id])
+  stop                      Stop  @relation(fields: [stopId], references: [id])
 
   @@unique([routeId, sequence])
   @@index([routeId, stopId])
@@ -217,6 +221,7 @@ model RouteStop {
 model Schedule {
   id                Int            @id @default(autoincrement())
   routeId           Int
+  description       String?
   departureTime     DateTime       @db.Time(0)
   estimatedDuration Int
   effectiveFrom     DateTime       @db.Date
@@ -229,6 +234,7 @@ model Schedule {
   trips             Trip[]
 
   @@index([routeId, departureTime, status])
+  @@index([status, effectiveFrom, effectiveUntil])
   @@map("schedules")
 }
 
@@ -244,31 +250,74 @@ model ScheduleDay {
 }
 
 model Trip {
-  id                 Int        @id @default(autoincrement())
-  tripCode           String?    @unique @db.VarChar(50)
+  id                 Int                 @id @default(autoincrement())
+  tripCode           String?             @unique @db.VarChar(50)
   scheduleId         Int
   routeId            Int
-  vehicleId          Int
-  driverId           Int
+  vehicleId          Int?
+  driverId           Int?
   scheduledDeparture DateTime
   scheduledArrival   DateTime
   actualDeparture    DateTime?
   actualArrival      DateTime?
-  status             TripStatus @default(SCHEDULED)
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-  schedule           Schedule   @relation(fields: [scheduleId], references: [id])
-  route              Route      @relation(fields: [routeId], references: [id])
-  vehicle            Vehicle    @relation(fields: [vehicleId], references: [id])
-  driver             User       @relation("TripDriver", fields: [driverId], references: [id])
+  cancellationReason String?
+  cancelledAt        DateTime?
+  cancelledById      Int?
+  delayReason        String?
+  revisedDeparture   DateTime?
+  revisedArrival     DateTime?
+  status             TripStatus          @default(SCHEDULED)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  schedule           Schedule            @relation(fields: [scheduleId], references: [id])
+  route              Route               @relation(fields: [routeId], references: [id])
+  vehicle            Vehicle?            @relation(fields: [vehicleId], references: [id])
+  driver             User?               @relation("TripDriver", fields: [driverId], references: [id])
+  cancelledBy        User?               @relation("TripCancelledBy", fields: [cancelledById], references: [id])
   locations          VehicleLocation[]
+  tripAssignments    TripAssignment[]
+  statusHistory      TripStatusHistory[]
 
+  @@unique([scheduleId, scheduledDeparture])
   @@index([driverId])
   @@index([vehicleId])
   @@index([routeId])
   @@index([status])
   @@index([scheduledDeparture])
   @@map("trips")
+}
+
+model TripAssignment {
+  id         Int       @id @default(autoincrement())
+  tripId     Int
+  driverId   Int
+  vehicleId  Int
+  assignedAt DateTime  @default(now())
+  endedAt    DateTime?
+  trip       Trip      @relation(fields: [tripId], references: [id])
+  driver     User      @relation("TripAssignmentDriver", fields: [driverId], references: [id])
+  vehicle    Vehicle   @relation(fields: [vehicleId], references: [id])
+
+  @@index([tripId, assignedAt])
+  @@index([driverId, endedAt])
+  @@index([vehicleId, endedAt])
+  @@map("trip_assignments")
+}
+
+model TripStatusHistory {
+  id          String      @id @default(cuid())
+  tripId      Int
+  fromStatus  TripStatus?
+  toStatus    TripStatus
+  changedById Int?
+  reason      String?
+  createdAt   DateTime    @default(now())
+  trip        Trip        @relation(fields: [tripId], references: [id])
+  changedBy   User?       @relation("TripStatusActor", fields: [changedById], references: [id])
+
+  @@index([tripId, createdAt])
+  @@index([changedById, createdAt])
+  @@map("trip_status_history")
 }
 
 model VehicleAssignment {
@@ -287,17 +336,17 @@ model VehicleAssignment {
 }
 
 model VehicleLocation {
-  id          BigInt    @id @default(autoincrement())
+  id          BigInt   @id @default(autoincrement())
   vehicleId   Int
   tripId      Int?
-  latitude    Decimal   @db.Decimal(10, 7)
-  longitude   Decimal   @db.Decimal(10, 7)
-  speed       Decimal?  @db.Decimal(6, 2)
-  heading     Decimal?  @db.Decimal(6, 2)
-  isSimulated Boolean   @default(true)
+  latitude    Decimal  @db.Decimal(10, 7)
+  longitude   Decimal  @db.Decimal(10, 7)
+  speed       Decimal? @db.Decimal(6, 2)
+  heading     Decimal? @db.Decimal(6, 2)
+  isSimulated Boolean  @default(true)
   recordedAt  DateTime
-  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id])
-  trip        Trip?     @relation(fields: [tripId], references: [id])
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id])
+  trip        Trip?    @relation(fields: [tripId], references: [id])
 
   @@index([vehicleId, recordedAt])
   @@index([tripId])

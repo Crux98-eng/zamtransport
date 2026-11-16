@@ -22,6 +22,7 @@ async function issueSession(db, user) {
 
 router.post('/register', validate(registerSchema), asyncHandler(async (request, response) => {
   const { fullName, email, phoneNumber, password } = request.body;
+  
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new AppError(409, 'An account already exists for this email address.', 'EMAIL_IN_USE');
   const passwordHash = await bcrypt.hash(password, 12);

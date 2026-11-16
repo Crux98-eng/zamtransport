@@ -5,6 +5,7 @@ const { rateLimit } = require('express-rate-limit');
 const authRoutes = require('./routes/v1/auth');
 const adminUserRoutes = require('./routes/v1/admin-users');
 const { adminRouter: adminTransportRoutes, publicRouter: publicTransportRoutes } = require('./routes/v1/transport');
+const { adminRouter: adminScheduleTripRoutes, driverRouter, commuterRouter, publicRouter: publicScheduleTripRoutes } = require('./routes/v1/schedule-trip');
 const { errorHandler, notFound } = require('./middlewares/error-handler');
 
 const app = express();
@@ -20,7 +21,11 @@ app.get('/health', (_request, response) => response.json({ status: 'ok', service
 app.use('/api/v1/auth', authRateLimit, authRoutes);
 app.use('/api/v1/admin/users', adminUserRoutes);
 app.use('/api/v1/admin', adminTransportRoutes);
+app.use('/api/v1/admin', adminScheduleTripRoutes);
+app.use('/api/v1/driver', driverRouter);
+app.use('/api/v1/commuter', commuterRouter);
 app.use('/api/v1', publicTransportRoutes);
+app.use('/api/v1', publicScheduleTripRoutes);
 app.use(notFound);
 app.use(errorHandler);
 module.exports = app;

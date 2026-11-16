@@ -20,6 +20,7 @@ const query = (request) => ({
   dateFrom: request.query.dateFrom ? new Date(request.query.dateFrom) : null,
   dateTo: request.query.dateTo ? new Date(request.query.dateTo) : null,
 });
+
 const userWhere = (search, status, dateFrom, dateTo) => ({ ...(status ? { status } : {}), ...(search ? { OR: [{ fullName: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }] } : {}), ...((dateFrom || dateTo) ? { createdAt: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } } : {}) });
 async function targetOr404(db, userId) { const user = await db.user.findUnique({ where: { id: userId } }); if (!user) throw new AppError(404, 'User not found.', 'USER_NOT_FOUND'); return user; }
 async function activeAdminCount(db) { return db.user.count({ where: { role: 'ADMIN', status: 'ACTIVE' } }); }
@@ -37,6 +38,7 @@ router.patch('/:userId/approve', asyncHandler(async (request, response) => {
     await audit(db, { actorId: request.user.id, targetUserId: userId, action: 'ACCOUNT_APPROVED', ipAddress: ip(request) }); return updated;
   }); response.json({ success: true, message: 'Account approved.', data: { user: publicUser(user) } });
 }));
+
 
 router.patch('/:userId/reject', validate(rejectSchema), asyncHandler(async (request, response) => {
   const userId = id(request.params.userId); const user = await prisma.$transaction(async (db) => {

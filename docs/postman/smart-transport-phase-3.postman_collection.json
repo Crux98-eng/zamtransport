@@ -1,0 +1,16 @@
+{
+  "info": { "name": "Smart Transport - Phase 3", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "scheduleId", "value": "1" },
+    { "key": "tripId", "value": "1" }
+  ],
+  "item": [
+    { "name": "Public upcoming trips", "request": { "method": "GET", "url": "{{baseUrl}}/trips/upcoming" } },
+    { "name": "Create schedule", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"routeId\": 1,\n  \"departureTime\": \"08:00\",\n  \"estimatedDuration\": 90,\n  \"days\": [\"MONDAY\", \"TUESDAY\"],\n  \"effectiveFrom\": \"2026-12-01\"\n}" }, "url": "{{baseUrl}}/admin/schedules" } },
+    { "name": "Generate trips", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"scheduleId\": {{scheduleId}},\n  \"startDate\": \"2026-12-01\",\n  \"endDate\": \"2026-12-31\"\n}" }, "url": "{{baseUrl}}/admin/trips/generate" } },
+    { "name": "Assign trip", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"driverId\": 5, \"vehicleId\": 3 }" }, "url": "{{baseUrl}}/admin/trips/{{tripId}}/assign" } },
+    { "name": "Cancel trip", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"reason\": \"Vehicle breakdown\" }" }, "url": "{{baseUrl}}/admin/trips/{{tripId}}/cancel" } }
+  ]
+}

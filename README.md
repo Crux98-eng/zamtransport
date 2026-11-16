@@ -18,6 +18,10 @@ are documented in [`docs/transport.md`](docs/transport.md), with an importable
 Postman collection at
 [`docs/postman/smart-transport-phase-2.postman_collection.json`](docs/postman/smart-transport-phase-2.postman_collection.json).
 
+Phase 3 schedule and trip management is documented in
+[`docs/schedule-trips.md`](docs/schedule-trips.md), with a Postman collection at
+[`docs/postman/smart-transport-phase-3.postman_collection.json`](docs/postman/smart-transport-phase-3.postman_collection.json).
+
 The project uses PostgreSQL because the configured Prisma connection is
 PostgreSQL; the original design document's MySQL recommendation was adapted to
 the actual connection provider.
