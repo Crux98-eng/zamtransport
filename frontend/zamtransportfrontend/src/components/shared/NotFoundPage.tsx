@@ -1,0 +1,2 @@
+import { Link } from 'react-router-dom'
+export function NotFoundPage() { return <main className="grid min-h-[70vh] place-items-center p-6 text-center"><div><p className="text-sm font-bold text-brand-500">404</p><h1 className="mt-2 text-3xl text-ink-900">Page not found</h1><p className="mt-3 text-ink-500">The page you requested is not part of this workspace.</p><Link to="/dashboard" className="mt-6 inline-flex h-11 items-center rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600">Return to dashboard</Link></div></main> }
