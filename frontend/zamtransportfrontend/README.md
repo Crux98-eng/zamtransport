@@ -44,3 +44,19 @@ TanStack Query is configured in `app/query-client.ts` with a 30-second stale tim
 ## Backend contract
 
 The frontend expects `/api/v1` routes from this repository. In particular, authentication is bearer-token based and CORS must permit `CLIENT_URL`. There is no password-reset endpoint or permissions collection in the current API, so the client does not invent either feature.
+
+## Application shell and navigation
+
+Authenticated routes render in `AppShell`, which provides a collapsible desktop
+sidebar, a mobile drawer, topbar, route-derived breadcrumbs, notification menu,
+and user menu. The central configuration is in `src/app/navigation.ts`; it is
+the single source of labels, paths, icons, role/permission requirements, and
+breadcrumb labels.
+
+Current working navigation destinations are Dashboard, Notifications, and My
+Profile. Notifications use the authenticated `/notifications` and
+`/notifications/unread-count` APIs, including mark-read actions. The backend
+also supports operations, fleet, live tracking, user approval, audit, reports,
+analytics, and settings endpoints, but their full management screens have not
+been implemented. They are retained as documented future navigation candidates
+and intentionally do not appear as placeholder links.

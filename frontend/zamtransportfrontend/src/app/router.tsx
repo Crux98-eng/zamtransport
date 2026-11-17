@@ -5,23 +5,39 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
 import { PendingApprovalPage } from '@/features/auth/PendingApprovalPage'
 import { UnauthorizedPage } from '@/features/auth/UnauthorizedPage'
+import { NotificationsPage } from '@/features/notifications/NotificationsPage'
+import { ProfilePage } from '@/features/profile/ProfilePage'
+import { BackendModulePage } from '@/features/resources/BackendModulePage'
 import { NotFoundPage } from '@/components/shared/NotFoundPage'
 import { ApprovalGuard, GuestGuard, ProtectedRoute, RoleGuard } from '@/components/shared/RouteGuards'
-import { FeaturePlaceholder } from '@/components/shared/FeaturePlaceholder'
 import { LandingPage } from '@/features/landing/LandingPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
-  { path: '/login', element: <LoginPage />},
+  { path: '/login', element: <GuestGuard><LoginPage /></GuestGuard> },
   { path: '/register', element: <GuestGuard><RegisterPage /></GuestGuard> },
   { path: '/pending-approval', element: <PendingApprovalPage /> },
   { path: '/unauthorized', element: <UnauthorizedPage /> },
   { path: '/', element: <ProtectedRoute><ApprovalGuard><AppShell /></ApprovalGuard></ProtectedRoute>, children: [
     { index: true, element: <Navigate to="/dashboard" replace /> },
     { path: 'dashboard', element: <DashboardPage /> },
-    { path: 'vehicles', element: <RoleGuard roles={['ADMIN']}><FeaturePlaceholder title="Vehicles" /></RoleGuard> },
-    { path: 'trips', element: <RoleGuard roles={['ADMIN']}><FeaturePlaceholder title="Trips" /></RoleGuard> },
-    { path: 'drivers', element: <RoleGuard roles={['ADMIN']}><FeaturePlaceholder title="Drivers" /></RoleGuard> },
+    { path: 'notifications', element: <NotificationsPage /> },
+    { path: 'profile', element: <ProfilePage /> },
+    { path: 'operations/trips', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Trips" description="Scheduled and operational trips." endpoint="/admin/trips" collection="trips" /></RoleGuard> },
+    { path: 'operations/schedules', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Schedules" description="Service schedules configured in the transport system." endpoint="/admin/schedules" collection="schedules" /></RoleGuard> },
+    { path: 'operations/routes', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Routes" description="Active route records." endpoint="/routes" collection="routes" /></RoleGuard> },
+    { path: 'operations/terminals', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Terminals" description="Stops and terminals registered in the system." endpoint="/stops" collection="stops" /></RoleGuard> },
+    { path: 'fleet/vehicles', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Vehicles" description="Fleet vehicles and their current status." endpoint="/admin/vehicles" collection="vehicles" /></RoleGuard> },
+    { path: 'fleet/drivers', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Drivers" description="Registered driver accounts and profiles." endpoint="/admin/drivers" collection="drivers" /></RoleGuard> },
+    { path: 'fleet/assignments', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Assignments" description="Standing vehicle and driver assignments." endpoint="/admin/assignments" collection="assignments" /></RoleGuard> },
+    { path: 'monitoring/tracking', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Live tracking" description="Currently tracked in-progress vehicles." endpoint="/tracking/vehicles" collection="vehicles" /></RoleGuard> },
+    { path: 'administration/users', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Users" description="System user accounts." endpoint="/admin/users" collection="users" /></RoleGuard> },
+    { path: 'administration/approvals', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Account approvals" description="Registration requests awaiting administrator approval." endpoint="/admin/users/pending" collection="users" /></RoleGuard> },
+    { path: 'administration/audit-logs', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Audit logs" description="Administrative activity recorded by the API." endpoint="/admin/audit-logs" collection="auditLogs" /></RoleGuard> },
+    { path: 'insights/reports', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Reports" description="Generated administrative reports." endpoint="/admin/reports" collection="reports" /></RoleGuard> },
+    { path: 'insights/analytics', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Driver analytics" description="Performance analytics for drivers." endpoint="/admin/analytics/drivers" collection="items" /></RoleGuard> },
+    { path: 'system/settings', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="System settings" description="Current administrative system configuration." endpoint="/admin/settings" /></RoleGuard> },
+    { path: '*', element: <NotFoundPage /> },
   ] },
   { path: '*', element: <NotFoundPage /> },
 ])
