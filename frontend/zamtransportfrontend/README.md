@@ -1,75 +1,46 @@
-# React + TypeScript + Vite
+# ZamTransport frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React, TypeScript, Vite, React Router, Axios, and TanStack Query client for the Zambia Transport Management System.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```powershell
+cd frontend/zamtransportfrontend
+npm.cmd install
+Copy-Item .env.example .env
+npm.cmd run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+The development UI runs on Vite's default `http://localhost:5173`. The API must allow that origin through its `CLIENT_URL` setting and be running before trying to sign in or register.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Environment and commands
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+`VITE_API_BASE_URL` is the versioned API base URL. `VITE_SOCKET_URL` is the Socket.IO server origin. Neither variable contains a secret. The API uses bearer tokens and all signing secrets remain on the server.
 
+```powershell
+npm.cmd run dev
+npm.cmd run build
+npm.cmd run lint
+npm.cmd run preview
 ```
+
+## Authentication architecture
+
+- `services/api.ts` owns the Axios instance, bearer header, API error parsing, one-flight refresh rotation, and authorization/account-status handling.
+- `services/auth.ts` contains only API calls for the backend's supported auth endpoints: register, login, refresh, logout, logout-all, current user, and password change.
+- `features/auth/AuthProvider.tsx` restores a saved session by calling `GET /auth/me`, exposes login/register/logout state, clears React Query and sockets on session end, and keeps the authoritative user record current.
+- Tokens are stored as the backend requires: the existing API returns bearer access and refresh tokens in JSON rather than HttpOnly cookies. They are never logged or placed in Vite environment variables. A future cookie-based API can replace this storage without changing screens or guards.
+
+## Flow and route protection
+
+Registration sends `fullName`, `email`, optional `phoneNumber`, `password`, and `confirmPassword` to `POST /auth/register`. The backend creates a `PENDING` `COMMUTER`; no token is issued and the UI sends the person to the approval page. Only an active account can receive tokens through `POST /auth/login`.
+
+`GuestGuard` keeps signed-in users away from login and registration. `ProtectedRoute` requires an initialized, valid session, while `ApprovalGuard` blocks pending and non-active accounts. `RoleGuard` is used for the current administrator-only operational pages. `PermissionGuard` is available but no permissions field is currently returned by the backend, so it is deliberately not applied speculatively. Navigation follows the same role restrictions.
+
+On a 401, a single request refreshes the session via `POST /auth/refresh` and replays the original request. If refresh fails, tokens and cached protected data are cleared and the user is returned to sign-in. Account-status 403 responses also clear the session; ordinary 403 permission denials do not.
+
+TanStack Query is configured in `app/query-client.ts` with a 30-second stale time, bounded retries, and no retries for authorization, validation, or server errors. Queries that need authentication should be declared with `enabled: auth.phase === 'authenticated'`.
+
+## Backend contract
+
+The frontend expects `/api/v1` routes from this repository. In particular, authentication is bearer-token based and CORS must permit `CLIENT_URL`. There is no password-reset endpoint or permissions collection in the current API, so the client does not invent either feature.

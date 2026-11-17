@@ -81,7 +81,12 @@ async function fail(tripId, error) {
 }
 
 async function stopAll(reason = 'STOP_ALL') { return Promise.all([...tasks.keys()].map((tripId) => stop(tripId, reason))); }
-async function recoverAfterRestart() { await prisma.trackingSimulation.updateMany({ where: { status: 'RUNNING' }, data: { status: 'STOPPED', stoppedAt: new Date(), stopReason: 'APPLICATION_RESTART' } }); }
+async function recoverAfterRestart() {
+  await prisma.trackingSimulation.updateMany({
+    where: { status: 'RUNNING' },
+    data: { status: 'STOPPED', stoppedAt: new Date(), stopReason: 'APPLICATION_RESTART' },
+  });
+}
 function active() { return [...tasks.values()].map(({ timer, stops, ...task }) => ({ ...task, currentStopSequence: stops[task.segmentIndex]?.sequence || null })); }
 
 module.exports = { active, complete, recoverAfterRestart, start, stop, stopAll };

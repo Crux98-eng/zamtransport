@@ -1,4 +1,11 @@
 export type ApiEnvelope<T> = { success: true; message?: string; data: T }
+export type ApiValidationIssue = { path?: Array<string | number>; message: string }
+export type ApiError = { success: false; message: string; code?: string; status?: number; errors?: ApiValidationIssue[] }
 export type UserRole = 'ADMIN' | 'DRIVER' | 'COMMUTER'
-export type User = { id: number; firstName: string; lastName: string; email: string; role: UserRole; status: string }
+export type UserStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'INACTIVE' | 'SUSPENDED'
+export type DriverProfile = { id: number; licenceNumber: string; licenceExpiry: string; address: string | null }
+export type User = { id: number; fullName: string; email: string; phoneNumber: string | null; role: UserRole; status: UserStatus; createdAt: string; approvedAt: string | null; rejectedAt: string | null; suspendedAt: string | null; profile?: DriverProfile | null; permissions?: string[] }
 export type AuthTokens = { accessToken: string; refreshToken: string }
+export type LoginResponse = AuthTokens & { user: User }
+export type RegisterPayload = { fullName: string; email: string; phoneNumber?: string; password: string; confirmPassword: string }
+export type LoginPayload = { email: string; password: string }
