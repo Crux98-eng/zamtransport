@@ -1,0 +1,22 @@
+const express = require('express');
+const prisma = require('../../lib/prisma');
+const AppError = require('../../errors/app-error');
+const { authenticate } = require('../../middlewares/auth');
+const validate = require('../../middlewares/validate');
+const asyncHandler = require('../../utils/async-handler');
+const { emitNotificationRead } = require('../../services/socket');
+const { preferenceSchema, types } = require('../../validators/notifications');
+const router = express.Router();
+router.use(authenticate);
+const id = (value) => { const parsed = Number.parseInt(value, 10); if (!Number.isInteger(parsed) || parsed < 1) throw new AppError(400, 'Invalid notification ID.', 'VALIDATION_ERROR'); return parsed; };
+const paging = (query) => ({ page: Math.max(1, Number.parseInt(query.page, 10) || 1), limit: Math.min(100, Math.max(1, Number.parseInt(query.limit, 10) || 20)) });
+async function countAndEmit(userId, notificationId) { emitNotificationRead(userId, notificationId, await prisma.notification.count({ where: { userId, isRead: false } })); }
+router.get('/', asyncHandler(async (request, response) => { const { page, limit } = paging(request.query); const where = { userId: request.user.id, ...(request.query.type ? { type: String(request.query.type) } : {}), ...(request.query.read === 'true' ? { isRead: true } : request.query.read === 'false' ? { isRead: false } : {}) }; if (request.query.type && !types.includes(request.query.type)) throw new AppError(400, 'Invalid notification type.', 'VALIDATION_ERROR'); if (request.query.read && !['true', 'false'].includes(request.query.read)) throw new AppError(400, 'read must be true or false.', 'VALIDATION_ERROR'); const [items, total] = await Promise.all([prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }), prisma.notification.count({ where })]); response.json({ success: true, data: { notifications: items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } }); }));
+router.get('/unread-count', asyncHandler(async (request, response) => { const count = await prisma.notification.count({ where: { userId: request.user.id, isRead: false } }); response.json({ success: true, data: { count } }); }));
+router.get('/preferences', asyncHandler(async (request, response) => response.json({ success: true, data: { preferences: await prisma.notificationPreference.upsert({ where: { userId: request.user.id }, update: {}, create: { userId: request.user.id } }) } })));
+router.patch('/preferences', validate(preferenceSchema), asyncHandler(async (request, response) => { const preferences = await prisma.notificationPreference.upsert({ where: { userId: request.user.id }, update: request.body, create: { userId: request.user.id, ...request.body } }); response.json({ success: true, data: { preferences } }); }));
+router.patch('/read-all', asyncHandler(async (request, response) => { const result = await prisma.notification.updateMany({ where: { userId: request.user.id, isRead: false }, data: { isRead: true, readAt: new Date() } }); await countAndEmit(request.user.id, null); response.json({ success: true, data: { updated: result.count } }); }));
+router.get('/:id', asyncHandler(async (request, response) => { const notification = await prisma.notification.findFirst({ where: { id: id(request.params.id), userId: request.user.id } }); if (!notification) throw new AppError(404, 'Notification not found.', 'NOT_FOUND'); response.json({ success: true, data: { notification } }); }));
+router.patch('/:id/read', asyncHandler(async (request, response) => { const notification = await prisma.notification.findFirst({ where: { id: id(request.params.id), userId: request.user.id } }); if (!notification) throw new AppError(404, 'Notification not found.', 'NOT_FOUND'); const updated = notification.isRead ? notification : await prisma.notification.update({ where: { id: notification.id }, data: { isRead: true, readAt: new Date() } }); if (!notification.isRead) await countAndEmit(request.user.id, notification.id); response.json({ success: true, data: { notification: updated } }); }));
+router.delete('/:id', asyncHandler(async (request, response) => { const notification = await prisma.notification.findFirst({ where: { id: id(request.params.id), userId: request.user.id } }); if (!notification) throw new AppError(404, 'Notification not found.', 'NOT_FOUND'); await prisma.notification.delete({ where: { id: notification.id } }); response.status(204).end(); }));
+module.exports = router;

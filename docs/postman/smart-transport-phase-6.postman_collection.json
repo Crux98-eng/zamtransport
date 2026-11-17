@@ -1,0 +1,13 @@
+{
+  "info": { "name": "Smart Transport - Phase 6 Operations", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000/api/v1" }, { "key": "accessToken", "value": "" }],
+  "item": [
+    { "name": "Notifications", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/notifications?read=false" } },
+    { "name": "Unread notification count", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/notifications/unread-count" } },
+    { "name": "Notification preferences", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"emailEnabled\": true, \"mutedTypes\": [\"GENERAL\"] }" }, "url": "{{baseUrl}}/notifications/preferences" } },
+    { "name": "My sessions", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/auth/sessions" } },
+    { "name": "System health (admin)", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/system/health" } },
+    { "name": "Update system setting", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"settings\": { \"REPORT_RETENTION_DAYS\": \"30\" } }" }, "url": "{{baseUrl}}/admin/settings" } },
+    { "name": "Audit log export", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/audit-logs/export" } }
+  ]
+}

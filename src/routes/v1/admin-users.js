@@ -6,13 +6,16 @@ const validate = require('../../middlewares/validate');
 const asyncHandler = require('../../utils/async-handler');
 const { audit } = require('../../utils/audit');
 const { publicUser } = require('../../utils/users');
+const notifications = require('../../services/notifications');
 const { profileSchema, rejectSchema, roleSchema, statusSchema } = require('../../validators/auth');
 
 const router = express.Router();
 router.use(authenticate, authorize('ADMIN'));
 
 const id = (value) => { const parsed = Number.parseInt(value, 10); if (!Number.isInteger(parsed) || parsed < 1) throw new AppError(400, 'Invalid user ID.', 'VALIDATION_ERROR'); return parsed; };
+
 const ip = (request) => request.ip;
+
 const query = (request) => ({
   page: Math.max(1, Number.parseInt(request.query.page, 10) || 1),
   limit: Math.min(100, Math.max(1, Number.parseInt(request.query.limit, 10) || 20)),
@@ -36,7 +39,7 @@ router.patch('/:userId/approve', asyncHandler(async (request, response) => {
     const target = await targetOr404(db, userId); if (target.status !== 'PENDING') throw new AppError(409, 'Only pending accounts can be approved.', 'INVALID_STATUS_TRANSITION');
     const updated = await db.user.update({ where: { id: userId }, data: { status: 'ACTIVE', approvedAt: new Date(), approvedById: request.user.id } });
     await audit(db, { actorId: request.user.id, targetUserId: userId, action: 'ACCOUNT_APPROVED', ipAddress: ip(request) }); return updated;
-  }); response.json({ success: true, message: 'Account approved.', data: { user: publicUser(user) } });
+  }); await notifications.create({ userId, title: 'Account approved', message: 'Your account has been approved and is now active.', type: 'USER_APPROVAL', dedupeKey: `user:${userId}:approved` }); response.json({ success: true, message: 'Account approved.', data: { user: publicUser(user) } });
 }));
 
 
@@ -45,7 +48,7 @@ router.patch('/:userId/reject', validate(rejectSchema), asyncHandler(async (requ
     const target = await targetOr404(db, userId); if (target.status !== 'PENDING') throw new AppError(409, 'Only pending accounts can be rejected.', 'INVALID_STATUS_TRANSITION');
     const updated = await db.user.update({ where: { id: userId }, data: { status: 'REJECTED', rejectedAt: new Date(), rejectedById: request.user.id, rejectionReason: request.body.reason || null } });
     await audit(db, { actorId: request.user.id, targetUserId: userId, action: 'ACCOUNT_REJECTED', metadata: request.body.reason ? { reason: request.body.reason } : undefined, ipAddress: ip(request) }); return updated;
-  }); response.json({ success: true, message: 'Account rejected.', data: { user: publicUser(user) } });
+  }); await notifications.create({ userId, title: 'Account rejected', message: 'Your account registration was not approved.', type: 'USER_REJECTION', dedupeKey: `user:${userId}:rejected` }); response.json({ success: true, message: 'Account rejected.', data: { user: publicUser(user) } });
 }));
 
 async function changeStatus(request, userId, status) { return prisma.$transaction(async (db) => {
@@ -62,8 +65,8 @@ async function changeStatus(request, userId, status) { return prisma.$transactio
   await audit(db, { actorId: request.user.id, targetUserId: userId, action: 'ACCOUNT_REACTIVATED', ipAddress: ip(request) }); return updated;
 }); }
 
-router.patch('/:userId/suspend', asyncHandler(async (request, response) => { const user = await changeStatus(request, id(request.params.userId), 'SUSPENDED'); response.json({ success: true, message: 'Account suspended.', data: { user: publicUser(user) } }); }));
-router.patch('/:userId/reactivate', asyncHandler(async (request, response) => { const user = await changeStatus(request, id(request.params.userId), 'ACTIVE'); response.json({ success: true, message: 'Account reactivated.', data: { user: publicUser(user) } }); }));
+router.patch('/:userId/suspend', asyncHandler(async (request, response) => { const user = await changeStatus(request, id(request.params.userId), 'SUSPENDED'); await notifications.create({ userId: user.id, title: 'Account suspended', message: 'Your account has been suspended. Contact an administrator for assistance.', type: 'SYSTEM_ALERT', dedupeKey: `user:${user.id}:suspended:${user.suspendedAt?.toISOString()}` }); response.json({ success: true, message: 'Account suspended.', data: { user: publicUser(user) } }); }));
+router.patch('/:userId/reactivate', asyncHandler(async (request, response) => { const user = await changeStatus(request, id(request.params.userId), 'ACTIVE'); await notifications.create({ userId: user.id, title: 'Account reactivated', message: 'Your account has been reactivated.', type: 'GENERAL', dedupeKey: `user:${user.id}:reactivated:${user.updatedAt?.toISOString()}` }); response.json({ success: true, message: 'Account reactivated.', data: { user: publicUser(user) } }); }));
 
 router.get('/', asyncHandler(async (request, response) => { const { page, limit, search } = query(request); const where = userWhere(search, request.query.status); const [users, total] = await Promise.all([prisma.user.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }), prisma.user.count({ where })]); response.json({ success: true, data: { users: users.map(publicUser), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } }); }));
 

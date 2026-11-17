@@ -1,0 +1,16 @@
+{
+  "info": { "name": "Smart Transport - Phase 4 Tracking", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "tripId", "value": "1" },
+    { "key": "vehicleId", "value": "1" }
+  ],
+  "item": [
+    { "name": "Tracked vehicles", "request": { "method": "GET", "url": "{{baseUrl}}/tracking/vehicles" } },
+    { "name": "Trip ETA", "request": { "method": "GET", "url": "{{baseUrl}}/tracking/trips/{{tripId}}/eta" } },
+    { "name": "Start simulation", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"tripId\": {{tripId}} }" }, "url": "{{baseUrl}}/admin/tracking/simulations/start" } },
+    { "name": "Tracking overview", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/tracking/overview" } },
+    { "name": "Stop simulation", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/tracking/simulations/{{tripId}}/stop" } }
+  ]
+}

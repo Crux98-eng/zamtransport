@@ -6,6 +6,9 @@ const validate = require('../../middlewares/validate');
 const asyncHandler = require('../../utils/async-handler');
 const { audit } = require('../../utils/audit');
 const schemas = require('../../validators/schedule-trip');
+const simulation = require('../../services/simulation');
+const { emitDashboard } = require('../../services/socket');
+const notifications = require('../../services/notifications');
 
 const adminRouter = express.Router();
 const driverRouter = express.Router();
@@ -136,8 +139,8 @@ async function requireTrip(db, tripId, include = tripInclude) {
   return trip;
 }
 
-async function notify(db, userId, title, message, type) {
-  if (userId) await db.notification.create({ data: { userId, title, message, type } });
+async function notify(db, userId, title, message, type, dedupeKey) {
+  if (userId) await notifications.create({ db, userId, title, message, type, dedupeKey });
 }
 
 function operationalWindow(trip) {
@@ -182,7 +185,7 @@ async function assignTrip(db, trip, driverId, vehicleId, actorId) {
   if (active) await db.tripAssignment.update({ where: { id: active.id }, data: { endedAt: now } });
   await db.trip.update({ where: { id: trip.id }, data: { driverId, vehicleId } });
   await db.tripAssignment.create({ data: { tripId: trip.id, driverId, vehicleId, assignedAt: now } });
-  await notify(db, driverId, 'Trip assignment', `You have been assigned to trip ${trip.tripCode || trip.id}.`, 'TRIP_ASSIGNMENT');
+  await notify(db, driverId, 'Trip assignment', `You have been assigned to trip ${trip.tripCode || trip.id}.`, 'TRIP_ASSIGNMENT', `trip:${trip.id}:assignment:${driverId}`);
   await audit(db, { actorId, targetUserId: driverId, action: 'TRIP_ASSIGNED', metadata: { tripId: trip.id, vehicleId } });
   return { changed: true };
 }
@@ -215,9 +218,22 @@ async function changeStatus(db, trip, status, actorId, options = {}) {
   const updated = await db.trip.update({ where: { id: trip.id }, data });
   await db.tripStatusHistory.create({ data: { tripId: trip.id, fromStatus: trip.status, toStatus: status, changedById: actorId, reason: options.reason || null } });
   const messages = { BOARDING: 'is boarding', IN_PROGRESS: 'has departed', COMPLETED: 'has completed', DELAYED: 'has been delayed', CANCELLED: 'has been cancelled' };
-  if (trip.driverId) await notify(db, trip.driverId, 'Trip update', `Trip ${trip.tripCode || trip.id} ${messages[status]}.`, `TRIP_${status}`);
+  const notificationType = { BOARDING: 'TRIP_BOARDING', IN_PROGRESS: 'TRIP_DEPARTURE', COMPLETED: 'TRIP_COMPLETION', DELAYED: 'TRIP_DELAY', CANCELLED: 'TRIP_CANCELLATION' }[status];
+  if (trip.driverId) await notify(db, trip.driverId, 'Trip update', `Trip ${trip.tripCode || trip.id} ${messages[status]}.`, notificationType, `trip:${trip.id}:${status}`);
   await audit(db, { actorId, action: 'TRIP_STATUS_CHANGED', metadata: { tripId: trip.id, fromStatus: trip.status, toStatus: status, reason: options.reason } });
   return updated;
+}
+
+async function reconcileSimulation(tripId, status) {
+  try {
+    if (status === 'IN_PROGRESS') await simulation.start(tripId);
+    if (status === 'COMPLETED') await simulation.complete(tripId);
+    if (status === 'CANCELLED') await simulation.stop(tripId, 'TRIP_CANCELLED');
+  } catch (error) {
+    // The lifecycle change is already committed. Keep it valid and make a failed
+    // simulation visible to operators instead of rolling a trip back.
+    console.error(`Could not reconcile tracking simulation for trip ${tripId}:`, error.message);
+  }
 }
 
 function datesBetween(start, end) {
@@ -372,6 +388,7 @@ adminRouter.patch('/trips/:id', validate(schemas.tripPatchSchema), asyncHandler(
 adminRouter.patch('/trips/:id/assign', validate(schemas.tripAssignmentSchema), asyncHandler(async (request, response) => {
   const tripId = parsedId(request.params.id);
   const result = await prisma.$transaction(async (db) => { const trip = await requireTrip(db, tripId, undefined); return assignTrip(db, trip, request.body.driverId, request.body.vehicleId, request.user.id); });
+  if (result.changed) emitDashboard('dashboard:vehicle:updated', { tripId, vehicleId: request.body.vehicleId, driverId: request.body.driverId, change: 'TRIP_ASSIGNED' });
   response.json({ success: true, message: result.changed ? 'Trip assigned.' : 'Trip already has this assignment.', data: { trip: await requireTrip(prisma, tripId) } });
 }));
 
@@ -379,12 +396,16 @@ adminRouter.patch('/trips/:id/status', validate(schemas.tripStatusSchema), async
   const tripId = parsedId(request.params.id); const { status, reason, revisedDeparture, revisedArrival } = request.body;
   if (status === 'CANCELLED' && !reason) throw new AppError(400, 'Use a cancellation reason.', 'CANCELLATION_REASON_REQUIRED');
   await prisma.$transaction(async (db) => changeStatus(db, await requireTrip(db, tripId, undefined), status, request.user.id, { reason, revisedDeparture, revisedArrival }));
+  await reconcileSimulation(tripId, status);
+  emitDashboard('dashboard:trip:updated', { tripId, status }); emitDashboard('dashboard:operations:updated', { tripId, change: `TRIP_${status}` });
   response.json({ success: true, data: { trip: await requireTrip(prisma, tripId) } });
 }));
 
 adminRouter.patch('/trips/:id/cancel', validate(schemas.tripCancelSchema), asyncHandler(async (request, response) => {
   const tripId = parsedId(request.params.id);
   await prisma.$transaction(async (db) => changeStatus(db, await requireTrip(db, tripId, undefined), 'CANCELLED', request.user.id, { reason: request.body.reason }));
+  await reconcileSimulation(tripId, 'CANCELLED');
+  emitDashboard('dashboard:trip:updated', { tripId, status: 'CANCELLED' }); emitDashboard('dashboard:operations:updated', { tripId, change: 'TRIP_CANCELLED' });
   response.json({ success: true, data: { trip: await requireTrip(prisma, tripId) } });
 }));
 
@@ -411,6 +432,8 @@ for (const [path, status] of [['/trips/:id/boarding', 'BOARDING'], ['/trips/:id/
   driverRouter.patch(path, asyncHandler(async (request, response) => {
     const trip = await driverTrip(request);
     await prisma.$transaction(async (db) => changeStatus(db, await requireTrip(db, trip.id, undefined), status, request.user.id));
+    await reconcileSimulation(trip.id, status);
+    emitDashboard('dashboard:trip:updated', { tripId: trip.id, status }); emitDashboard('dashboard:operations:updated', { tripId: trip.id, change: `TRIP_${status}` });
     response.json({ success: true, data: { trip: await requireTrip(prisma, trip.id) } });
   }));
 }

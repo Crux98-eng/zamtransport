@@ -9,14 +9,15 @@ const asyncHandler = require('../../utils/async-handler');
 const { audit } = require('../../utils/audit');
 const { createRefreshToken, hashToken, signAccessToken, verifyRefreshToken } = require('../../utils/tokens');
 const { publicUser } = require('../../utils/users');
+const notifications = require('../../services/notifications');
 const { loginSchema, passwordChangeSchema, refreshSchema, registerSchema } = require('../../validators/auth');
 
 const router = express.Router();
 const clientIp = (request) => request.ip;
 
-async function issueSession(db, user) {
+async function issueSession(db, user, request) {
   const refresh = createRefreshToken(user);
-  await db.refreshToken.create({ data: { id: refresh.id, userId: user.id, tokenHash: refresh.tokenHash, expiresAt: refresh.expiresAt } });
+  await db.refreshToken.create({ data: { id: refresh.id, userId: user.id, tokenHash: refresh.tokenHash, expiresAt: refresh.expiresAt, ipAddress: request?.ip, userAgent: request?.get('user-agent')?.slice(0, 500) } });
   return { accessToken: signAccessToken(user), refreshToken: refresh.token };
 }
 
@@ -31,6 +32,8 @@ router.post('/register', validate(registerSchema), asyncHandler(async (request, 
     await audit(db, { targetUserId: created.id, action: 'USER_REGISTERED', ipAddress: clientIp(request) });
     return created;
   });
+  const admins = await prisma.user.findMany({ where: { role: 'ADMIN', status: 'ACTIVE' }, select: { id: true } });
+  await Promise.all(admins.map((admin) => notifications.create({ userId: admin.id, title: 'New user registration', message: `${user.fullName} is awaiting approval.`, type: 'GENERAL', dedupeKey: `user:${user.id}:registration:admin:${admin.id}` })));
   response.status(201).json({ success: true, message: 'Registration successful. Your account is awaiting administrator approval.', data: { user: publicUser(user) } });
 }));
 
@@ -39,13 +42,13 @@ router.post('/login', validate(loginSchema), asyncHandler(async (request, respon
   const user = await prisma.user.findUnique({ where: { email } });
   const valid = user && await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
-    if (user) await audit(prisma, { targetUserId: user.id, action: 'LOGIN_FAILED', ipAddress: clientIp(request) });
+    if (user) await audit(prisma, { targetUserId: user.id, action: 'LOGIN_FAILED', ipAddress: clientIp(request), userAgent: request.get('user-agent'), success: false, resourceType: 'User', resourceId: user.id });
     throw new AppError(401, 'Invalid email or password.', 'INVALID_CREDENTIALS');
   }
   if (user.status !== 'ACTIVE') throw new AppError(403, accountMessage(user.status), `ACCOUNT_${user.status}`);
   const tokens = await prisma.$transaction(async (db) => {
-    const result = await issueSession(db, user);
-    await audit(db, { actorId: user.id, targetUserId: user.id, action: 'LOGIN_SUCCEEDED', ipAddress: clientIp(request) });
+    const result = await issueSession(db, user, request);
+    await audit(db, { actorId: user.id, targetUserId: user.id, action: 'LOGIN_SUCCEEDED', ipAddress: clientIp(request), userAgent: request.get('user-agent'), resourceType: 'Session' });
     return result;
   });
   response.json({ success: true, message: 'Login successful.', data: { user: publicUser(user), ...tokens } });
@@ -66,9 +69,10 @@ router.post('/refresh', validate(refreshSchema), asyncHandler(async (request, re
   if (current.user.status !== 'ACTIVE') throw new AppError(403, accountMessage(current.user.status), `ACCOUNT_${current.user.status}`);
   const tokens = await prisma.$transaction(async (db) => {
     const next = createRefreshToken(current.user);
-    await db.refreshToken.create({ data: { id: next.id, userId: current.userId, tokenHash: next.tokenHash, expiresAt: next.expiresAt } });
+    await db.refreshToken.create({ data: { id: next.id, userId: current.userId, tokenHash: next.tokenHash, expiresAt: next.expiresAt, ipAddress: current.ipAddress, userAgent: current.userAgent } });
     const revoked = await db.refreshToken.updateMany({ where: { id: current.id, revokedAt: null }, data: { revokedAt: new Date(), revokedReason: 'ROTATED', replacedByTokenId: next.id } });
     if (revoked.count !== 1) throw new AppError(401, 'Refresh token has already been used.', 'REFRESH_TOKEN_REUSED');
+    await db.refreshToken.update({ where: { id: next.id }, data: { lastUsedAt: new Date() } });
     return { accessToken: signAccessToken(current.user), refreshToken: next.token };
   });
   response.json({ success: true, message: 'Tokens refreshed.', data: tokens });
@@ -90,6 +94,22 @@ router.post('/logout-all', authenticate, asyncHandler(async (request, response) 
     await audit(db, { actorId: request.user.id, targetUserId: request.user.id, action: 'LOGOUT_ALL', ipAddress: clientIp(request) });
   });
   response.json({ success: true, message: 'All sessions have been revoked.' });
+}));
+
+router.get('/sessions', authenticate, asyncHandler(async (request, response) => {
+  const sessions = await prisma.refreshToken.findMany({ where: { userId: request.user.id }, select: { id: true, createdAt: true, lastUsedAt: true, expiresAt: true, revokedAt: true, revokedReason: true, ipAddress: true, userAgent: true }, orderBy: { createdAt: 'desc' } });
+  response.json({ success: true, data: { sessions } });
+}));
+router.delete('/sessions/:sessionId', authenticate, asyncHandler(async (request, response) => {
+  const result = await prisma.refreshToken.updateMany({ where: { id: request.params.sessionId, userId: request.user.id, revokedAt: null }, data: { revokedAt: new Date(), revokedReason: 'USER_SESSION_REVOKED' } });
+  if (!result.count) throw new AppError(404, 'Active session not found.', 'NOT_FOUND');
+  await audit(prisma, { actorId: request.user.id, targetUserId: request.user.id, action: 'SESSION_REVOKED', resourceType: 'Session', resourceId: request.params.sessionId, ipAddress: clientIp(request), userAgent: request.get('user-agent') });
+  response.status(204).end();
+}));
+router.delete('/sessions', authenticate, asyncHandler(async (request, response) => {
+  const result = await prisma.refreshToken.updateMany({ where: { userId: request.user.id, revokedAt: null }, data: { revokedAt: new Date(), revokedReason: 'LOGOUT_ALL' } });
+  await audit(prisma, { actorId: request.user.id, targetUserId: request.user.id, action: 'LOGOUT_ALL', resourceType: 'Session', ipAddress: clientIp(request), userAgent: request.get('user-agent') });
+  response.json({ success: true, data: { revoked: result.count } });
 }));
 
 router.get('/me', authenticate, asyncHandler(async (request, response) => {
