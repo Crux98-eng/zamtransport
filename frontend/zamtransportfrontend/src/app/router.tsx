@@ -15,6 +15,8 @@ import { ApprovalGuard, GuestGuard, ProtectedRoute, RoleGuard } from '@/componen
 import { LandingPage } from '@/features/landing/LandingPage'
 import { FleetMonitorPage } from '@/features/live-fleet/FleetMonitorPage'
 import { ApprovalsPage } from '@/features/approvals/ApprovalsPage'
+import { SchedulesPage } from '@/features/schedules/SchedulesPage'
+import { RoutesPage } from '@/features/routes/RoutesPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
@@ -28,8 +30,8 @@ export const router = createBrowserRouter([
     { path: 'notifications', element: <NotificationsPage /> },
     { path: 'profile', element: <ProfilePage /> },
     { path: 'operations/trips', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Trips" description="Scheduled and operational trips." endpoint="/admin/trips" collection="trips" /></RoleGuard> },
-    { path: 'operations/schedules', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Schedules" description="Service schedules configured in the transport system." endpoint="/admin/schedules" collection="schedules" /></RoleGuard> },
-    { path: 'operations/routes', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Routes" description="Active route records." endpoint="/routes" collection="routes" /></RoleGuard> },
+    { path: 'operations/schedules', element: <RoleGuard roles={['ADMIN']}><SchedulesPage /></RoleGuard> },
+    { path: 'operations/routes', element: <RoleGuard roles={['ADMIN']}><RoutesPage /></RoleGuard> },
     { path: 'operations/terminals', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Terminals" description="Stops and terminals registered in the system." endpoint="/stops" collection="stops" /></RoleGuard> },
     { path: 'fleet/vehicles', element: <RoleGuard roles={['ADMIN']}><VehiclesPage /></RoleGuard> },
     { path: 'fleet/drivers', element: <RoleGuard roles={['ADMIN']}><DriversPage /></RoleGuard> },
