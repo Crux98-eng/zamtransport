@@ -14,6 +14,7 @@ import { NotFoundPage } from '@/components/shared/NotFoundPage'
 import { ApprovalGuard, GuestGuard, ProtectedRoute, RoleGuard } from '@/components/shared/RouteGuards'
 import { LandingPage } from '@/features/landing/LandingPage'
 import { FleetMonitorPage } from '@/features/live-fleet/FleetMonitorPage'
+import { ApprovalsPage } from '@/features/approvals/ApprovalsPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
@@ -35,7 +36,7 @@ export const router = createBrowserRouter([
     { path: 'fleet/assignments', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Assignments" description="Standing vehicle and driver assignments." endpoint="/admin/assignments" collection="assignments" /></RoleGuard> },
     { path: 'monitoring/tracking', element: <RoleGuard roles={['ADMIN']}><FleetMonitorPage /></RoleGuard> },
     { path: 'administration/users', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Users" description="System user accounts." endpoint="/admin/users" collection="users" /></RoleGuard> },
-    { path: 'administration/approvals', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Account approvals" description="Registration requests awaiting administrator approval." endpoint="/admin/users/pending" collection="users" /></RoleGuard> },
+    { path: 'administration/approvals', element: <RoleGuard roles={['ADMIN']}><ApprovalsPage /></RoleGuard> },
     { path: 'administration/audit-logs', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Audit logs" description="Administrative activity recorded by the API." endpoint="/admin/audit-logs" collection="auditLogs" /></RoleGuard> },
     { path: 'insights/reports', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Reports" description="Generated administrative reports." endpoint="/admin/reports" collection="reports" /></RoleGuard> },
     { path: 'insights/analytics', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Driver analytics" description="Performance analytics for drivers." endpoint="/admin/analytics/drivers" collection="items" /></RoleGuard> },

@@ -1,11 +1,19 @@
 import { BusFront, Clock3, MailCheck } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Notice } from '@/components/ui/Notice'
 import { getPendingAccount } from '@/stores/auth-store'
+import { useAuth } from './AuthProvider'
 
 export function PendingApprovalPage() {
   const account = getPendingAccount()
+  const navigate = useNavigate()
+  const { clearPendingRegistration } = useAuth()
+  const returnToLogin = () => {
+    clearPendingRegistration()
+    navigate('/login', { replace: true })
+  }
+
   return <main className="grid min-h-screen place-items-center bg-[radial-gradient(ellipse_at_70%_0%,rgba(255,90,43,.3),transparent_50%),#101012] p-4">
     <section className="w-full max-w-md rounded-2xl border border-white/10 bg-ink-50 p-7 text-center shadow-2xl sm:p-9">
       <span className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-brand-500 text-white">
@@ -20,9 +28,7 @@ export function PendingApprovalPage() {
           <MailCheck size={16} className="text-brand-400" />
           {account.email}</p>
       </div>}
-      <Link className="mt-7 block" to="/login">
-        <Button className="w-full">Return to sign in</Button>
-      </Link>
+      <Button className="mt-7 w-full" onClick={returnToLogin}>Return to sign in</Button>
     </section>
   </main>
 }
