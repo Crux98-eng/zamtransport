@@ -8,6 +8,8 @@ import { UnauthorizedPage } from '@/features/auth/UnauthorizedPage'
 import { NotificationsPage } from '@/features/notifications/NotificationsPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { BackendModulePage } from '@/features/resources/BackendModulePage'
+import { VehiclesPage } from '@/features/vehicles/VehiclesPage'
+import { DriversPage } from '@/features/drivers/DriversPage'
 import { NotFoundPage } from '@/components/shared/NotFoundPage'
 import { ApprovalGuard, GuestGuard, ProtectedRoute, RoleGuard } from '@/components/shared/RouteGuards'
 import { LandingPage } from '@/features/landing/LandingPage'
@@ -27,8 +29,8 @@ export const router = createBrowserRouter([
     { path: 'operations/schedules', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Schedules" description="Service schedules configured in the transport system." endpoint="/admin/schedules" collection="schedules" /></RoleGuard> },
     { path: 'operations/routes', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Routes" description="Active route records." endpoint="/routes" collection="routes" /></RoleGuard> },
     { path: 'operations/terminals', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Terminals" description="Stops and terminals registered in the system." endpoint="/stops" collection="stops" /></RoleGuard> },
-    { path: 'fleet/vehicles', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Vehicles" description="Fleet vehicles and their current status." endpoint="/admin/vehicles" collection="vehicles" /></RoleGuard> },
-    { path: 'fleet/drivers', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Drivers" description="Registered driver accounts and profiles." endpoint="/admin/drivers" collection="drivers" /></RoleGuard> },
+    { path: 'fleet/vehicles', element: <RoleGuard roles={['ADMIN']}><VehiclesPage /></RoleGuard> },
+    { path: 'fleet/drivers', element: <RoleGuard roles={['ADMIN']}><DriversPage /></RoleGuard> },
     { path: 'fleet/assignments', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Assignments" description="Standing vehicle and driver assignments." endpoint="/admin/assignments" collection="assignments" /></RoleGuard> },
     { path: 'monitoring/tracking', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Live tracking" description="Currently tracked in-progress vehicles." endpoint="/tracking/vehicles" collection="vehicles" /></RoleGuard> },
     { path: 'administration/users', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Users" description="System user accounts." endpoint="/admin/users" collection="users" /></RoleGuard> },
