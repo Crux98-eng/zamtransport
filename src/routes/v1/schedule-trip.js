@@ -274,7 +274,7 @@ adminRouter.get('/schedules/:id', asyncHandler(async (request, response) => {
 
 adminRouter.patch('/schedules/:id', validate(schemas.schedulePatchSchema), asyncHandler(async (request, response) => {
   const scheduleId = parsedId(request.params.id);
-  const schedule = await prisma.$transaction(async (db) => {
+  const schedule = await prisma.$(async (db) => {
     const current = await requireSchedule(db, scheduleId);
     const input = request.body;
     const effectiveFrom = input.effectiveFrom || current.effectiveFrom;
@@ -344,18 +344,24 @@ adminRouter.post('/trips/generate', validate(schemas.generateTripsSchema), async
 
 // Admin trip management.
 adminRouter.post('/trips', validate(schemas.tripCreateSchema), asyncHandler(async (request, response) => {
-  const created = await prisma.$transaction(async (db) => {
-    const { driverId, vehicleId, routeId, ...data } = request.body;
-    const schedule = await requireSchedule(db, data.scheduleId);
-    const resolvedRouteId = routeId || schedule.routeId;
-    if (resolvedRouteId !== schedule.routeId) throw new AppError(400, 'Trip route must match its schedule route.', 'SCHEDULE_ROUTE_MISMATCH');
-    await requireRoute(db, resolvedRouteId);
-    const trip = await createTrip(db, { ...data, routeId: resolvedRouteId }, request.user.id);
-    if ((driverId && !vehicleId) || (!driverId && vehicleId)) throw new AppError(400, 'Driver and vehicle must be assigned together.', 'VALIDATION_ERROR');
-    if (driverId) await assignTrip(db, trip, driverId, vehicleId, request.user.id);
-    await audit(db, { actorId: request.user.id, action: 'TRIP_CREATED', metadata: { tripId: trip.id } });
-    return requireTrip(db, trip.id);
-  });
+  const created = await prisma.$transaction(
+    async (db) => {
+      const { driverId, vehicleId, routeId, ...data } = request.body;
+      const schedule = await requireSchedule(db, data.scheduleId);
+      const resolvedRouteId = routeId || schedule.routeId;
+      if (resolvedRouteId !== schedule.routeId) throw new AppError(400, 'Trip route must match its schedule route.', 'SCHEDULE_ROUTE_MISMATCH');
+      await requireRoute(db, resolvedRouteId);
+      const trip = await createTrip(db, { ...data, routeId: resolvedRouteId }, request.user.id);
+      if ((driverId && !vehicleId) || (!driverId && vehicleId)) throw new AppError(400, 'Driver and vehicle must be assigned together.', 'VALIDATION_ERROR');
+      if (driverId) await assignTrip(db, trip, driverId, vehicleId, request.user.id);
+      await audit(db, { actorId: request.user.id, action: 'TRIP_CREATED', metadata: { tripId: trip.id } });
+      return requireTrip(db, trip.id);
+    },
+    {
+      maxWait: 10000,
+      timeout: 15000,
+    },
+  );
   response.status(201).json({ success: true, data: { trip: created } });
 }));
 
@@ -431,7 +437,13 @@ driverRouter.get('/trips/:id', asyncHandler(async (request, response) => respons
 for (const [path, status] of [['/trips/:id/boarding', 'BOARDING'], ['/trips/:id/start', 'IN_PROGRESS'], ['/trips/:id/complete', 'COMPLETED']]) {
   driverRouter.patch(path, asyncHandler(async (request, response) => {
     const trip = await driverTrip(request);
-    await prisma.$transaction(async (db) => changeStatus(db, await requireTrip(db, trip.id, undefined), status, request.user.id));
+    await prisma.$transaction(
+      async (db) => changeStatus(db, await requireTrip(db, trip.id, undefined), status, request.user.id),
+      {
+        maxWait: 10000,
+        timeout: 15000,
+      },
+    );
     await reconcileSimulation(trip.id, status);
     emitDashboard('dashboard:trip:updated', { tripId: trip.id, status }); emitDashboard('dashboard:operations:updated', { tripId: trip.id, change: `TRIP_${status}` });
     response.json({ success: true, data: { trip: await requireTrip(prisma, trip.id) } });

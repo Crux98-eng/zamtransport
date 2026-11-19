@@ -570,7 +570,7 @@ export function FleetMonitorPage() {
               <span className="inline-flex items-center gap-1.5 text-xs text-ink-500"><MapPin size={14} /> OpenStreetMap</span>
             </div>
             <div className="h-[min(62vh,680px)] min-h-[420px]">
-              <MapContainer center={[0, 0]} zoom={2} scrollWheelZoom className="h-full w-full">
+              <MapContainer center={[-13.133897, 27.849332]} zoom={6} scrollWheelZoom className="h-full w-full">
                 <MapView positions={positions} />
                 <MapMapRef onReady={onMapReady} />
                 <TileLayer

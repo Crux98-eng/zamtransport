@@ -24,5 +24,19 @@ api.interceptors.response.use(undefined, async (error: AxiosError) => {
   request.headers.Authorization = `Bearer ${token}`
   return api(request)
 })
-export function apiError(error: unknown): ApiError { if (axios.isAxiosError(error)) { const body = error.response?.data as Partial<ApiError> | undefined; return { success: false, message: body?.message ?? 'We could not complete that request.', code: body?.code, status: error.response?.status, errors: body?.errors } } return { success: false, message: 'Something went wrong. Please try again.' } }
+export function apiError(error: unknown): ApiError {
+  if (axios.isAxiosError(error)) {
+    const body = error.response?.data as Partial<ApiError> | undefined
+    const message = typeof body?.message === 'string' ? body.message.trim() : ''
+    const validationMessage = body?.errors?.map((issue) => issue.message.trim()).filter(Boolean).join(' ')
+    return {
+      success: false,
+      message: message || validationMessage || 'We could not complete that request.',
+      code: body?.code,
+      status: error.response?.status,
+      errors: body?.errors,
+    }
+  }
+  return { success: false, message: 'Something went wrong. Please try again.' }
+}
 export function apiMessage(error: unknown) { return apiError(error).message }
