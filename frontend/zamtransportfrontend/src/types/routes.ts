@@ -25,6 +25,10 @@ export type TransportRoute = {
   routeCode: string | null
   origin: string
   destination: string
+  originStopId: number | null
+  destinationStopId: number | null
+  originStop?: Stop | null
+  destinationStop?: Stop | null
   description: string | null
   distanceKm: number | string | null
   estimatedDuration: number | null
@@ -37,8 +41,8 @@ export type TransportRoute = {
 export type RoutePayload = {
   name: string
   routeCode: string | null
-  origin: string
-  destination: string
+  originStopId: number
+  destinationStopId: number
   description: string | null
   distanceKm: number | null
   estimatedDuration: number | null

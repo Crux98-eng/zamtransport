@@ -284,7 +284,9 @@ adminRouter.patch('/schedules/:id', validate(schemas.schedulePatchSchema), async
     const { days, departureTime, ...fields } = input;
     const updated = await db.schedule.update({ where: { id: scheduleId }, data: { ...fields, ...(departureTime ? { departureTime: new Date(`1970-01-01T${departureTime}Z`) } : {}), ...(days ? { days: { deleteMany: {}, create: [...new Set(days)].map((dayOfWeek) => ({ dayOfWeek })) } } : {}) }, include: { route: true, days: true } });
     await audit(db, { actorId: request.user.id, action: 'SCHEDULE_UPDATED', metadata: { scheduleId } });
-    return updated;
+    // Start/stop GPS simulation based on new status
+await reconcileSimulation(updated.id, status);
+return updated;
   });
   response.json({ success: true, data: { schedule: publicSchedule(schedule) } });
 }));
@@ -386,7 +388,9 @@ adminRouter.patch('/trips/:id', validate(schemas.tripPatchSchema), asyncHandler(
     }
     const updated = await db.trip.update({ where: { id: tripId }, data: request.body, include: tripInclude });
     await audit(db, { actorId: request.user.id, action: 'TRIP_UPDATED', metadata: { tripId } });
-    return updated;
+    // Start/stop GPS simulation based on new status
+await reconcileSimulation(updated.id, status);
+return updated;
   });
   response.json({ success: true, data: { trip } });
 }));
@@ -424,7 +428,12 @@ async function driverTrip(request) {
 
 driverRouter.get('/trips', asyncHandler(async (request, response) => {
   const value = pagination(request.query); const where = tripWhere(request.query, { driverId: request.user.id });
-  if (!request.query.includePast) where.scheduledDeparture = { ...(where.scheduledDeparture || {}), gte: new Date() };
+  if (!request.query.includePast) {
+    where.OR = [
+      { scheduledDeparture: { gte: new Date() } },
+      { status: { in: activeTripStatuses } },
+    ];
+  }
   const [trips, total] = await Promise.all([prisma.trip.findMany({ where, include: tripInclude, orderBy: { scheduledDeparture: 'asc' }, skip: (value.page - 1) * value.limit, take: value.limit }), prisma.trip.count({ where })]);
   response.json({ success: true, data: { trips, pagination: pageResponse([], total, value).pagination } });
 }));
@@ -434,6 +443,37 @@ driverRouter.get('/trips/history', asyncHandler(async (request, response) => {
   response.json({ success: true, data: { trips, pagination: pageResponse([], total, value).pagination } });
 }));
 driverRouter.get('/trips/:id', asyncHandler(async (request, response) => response.json({ success: true, data: { trip: await driverTrip(request) } })));
+
+// Driver acceptance (boarding) and departure workflow
+// Accept assignment – moves SCHEDULED → BOARDING
+driverRouter.patch('/trips/:id/accept', asyncHandler(async (request, response) => {
+  const trip = await driverTrip(request);
+  if (trip.status !== 'SCHEDULED') throw new AppError(409, 'Trip cannot be accepted in its current state.', 'INVALID_STATUS_TRANSITION');
+  await prisma.$transaction(
+    async (db) => changeStatus(db, await requireTrip(db, trip.id, undefined), 'BOARDING', request.user.id),
+    { maxWait: 10000, timeout: 15000 },
+  );
+  await reconcileSimulation(trip.id, 'BOARDING');
+  emitDashboard('dashboard:trip:updated', { tripId: trip.id, status: 'BOARDING' });
+  emitDashboard('dashboard:operations:updated', { tripId: trip.id, change: 'TRIP_ACCEPTED' });
+  response.json({ success: true, data: { trip: await requireTrip(prisma, trip.id) } });
+}));
+
+// Decline assignment – moves SCHEDULED → CANCELLED with decline reason
+driverRouter.patch('/trips/:id/decline', asyncHandler(async (request, response) => {
+  const { reason } = request.body;
+  if (!reason) throw new AppError(400, 'Decline reason is required.', 'VALIDATION_ERROR');
+  const trip = await driverTrip(request);
+  if (trip.status !== 'SCHEDULED') throw new AppError(409, 'Trip cannot be declined in its current state.', 'INVALID_STATUS_TRANSITION');
+  await prisma.$transaction(
+    async (db) => changeStatus(db, await requireTrip(db, trip.id, undefined), 'CANCELLED', request.user.id, { reason: `DECLINED: ${reason}` }),
+    { maxWait: 10000, timeout: 15000 },
+  );
+  await reconcileSimulation(trip.id, 'CANCELLED');
+  emitDashboard('dashboard:trip:updated', { tripId: trip.id, status: 'CANCELLED' });
+  emitDashboard('dashboard:operations:updated', { tripId: trip.id, change: 'TRIP_DECLINED' });
+  response.json({ success: true, data: { trip: await requireTrip(prisma, trip.id) } });
+}));
 for (const [path, status] of [['/trips/:id/boarding', 'BOARDING'], ['/trips/:id/start', 'IN_PROGRESS'], ['/trips/:id/complete', 'COMPLETED']]) {
   driverRouter.patch(path, asyncHandler(async (request, response) => {
     const trip = await driverTrip(request);

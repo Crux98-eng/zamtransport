@@ -57,14 +57,59 @@ adminRouter.patch('/vehicles/:vehicleId', validate(schemas.vehiclePatchSchema), 
 adminRouter.patch('/vehicles/:vehicleId/status', validate(schemas.vehicleStatusSchema), asyncHandler(async (request, response) => { const vehicleId = id(request.params.vehicleId); await must(prisma, 'vehicle', vehicleId, 'Vehicle'); const vehicle = await prisma.vehicle.update({ where: { id: vehicleId }, data: { status: request.body.status } }); await audit(prisma, { actorId: request.user.id, action: 'VEHICLE_STATUS_CHANGED', metadata: { vehicleId, status: request.body.status }, ipAddress: ip(request) }); emitDashboard('dashboard:vehicle:updated', { vehicleId, status: vehicle.status, change: vehicle.status === 'MAINTENANCE' ? 'ENTERED_MAINTENANCE' : 'STATUS_CHANGED' }); emitDashboard('dashboard:operations:updated', { vehicleId, change: vehicle.status === 'ACTIVE' ? 'RETURNED_TO_SERVICE' : 'VEHICLE_STATUS_CHANGED' }); response.json({ success: true, data: { vehicle } }); }));
 adminRouter.delete('/vehicles/:vehicleId', asyncHandler(async (request, response) => { const vehicleId = id(request.params.vehicleId); const vehicle = await must(prisma, 'vehicle', vehicleId, 'Vehicle'); const [trips, locations, maintenance] = await Promise.all([prisma.trip.count({ where: { vehicleId } }), prisma.vehicleLocation.count({ where: { vehicleId } }), prisma.maintenanceRecord.count({ where: { vehicleId } })]); if (trips || locations || maintenance) throw new AppError(409, 'Vehicle has historical records; deactivate it instead of deleting it.', 'HISTORICAL_RECORDS_EXIST'); await prisma.vehicle.delete({ where: { id: vehicle.id } }); await audit(prisma, { actorId: request.user.id, action: 'VEHICLE_DELETED', metadata: { vehicleId }, ipAddress: ip(request) }); response.json({ success: true, message: 'Vehicle deleted.' }); }));
 
-adminRouter.post('/routes', validate(schemas.routeSchema), asyncHandler(async (request, response) => { const route = await prisma.route.create({ data: request.body }); await audit(prisma, { actorId: request.user.id, action: 'ROUTE_CREATED', metadata: { routeId: route.id }, ipAddress: ip(request) }); response.status(201).json({ success: true, data: { route } }); }));
-adminRouter.patch('/routes/:routeId', validate(schemas.routePatchSchema), asyncHandler(async (request, response) => { const routeId = id(request.params.routeId); await must(prisma, 'route', routeId, 'Route'); const route = await prisma.route.update({ where: { id: routeId }, data: request.body }); await audit(prisma, { actorId: request.user.id, action: 'ROUTE_UPDATED', metadata: { routeId }, ipAddress: ip(request) }); response.json({ success: true, data: { route } }); }));
+adminRouter.post('/routes', validate(schemas.routeSchema), asyncHandler(async (request, response) => {
+  const { originStopId, destinationStopId, ...data } = request.body;
+  const [originStop, destinationStop] = await Promise.all([
+    must(prisma, 'stop', originStopId, 'Origin terminal'),
+    must(prisma, 'stop', destinationStopId, 'Destination terminal'),
+  ]);
+  const route = await prisma.route.create({
+    data: { ...data, origin: originStop.name, destination: destinationStop.name, originStopId, destinationStopId },
+    include: { originStop: true, destinationStop: true },
+  });
+  await audit(prisma, { actorId: request.user.id, action: 'ROUTE_CREATED', metadata: { routeId: route.id }, ipAddress: ip(request) });
+  response.status(201).json({ success: true, data: { route } });
+}));
+adminRouter.patch('/routes/:routeId', validate(schemas.routePatchSchema), asyncHandler(async (request, response) => {
+  const routeId = id(request.params.routeId);
+  await must(prisma, 'route', routeId, 'Route');
+  const { originStopId, destinationStopId, ...data } = request.body;
+  if (originStopId !== undefined && destinationStopId !== undefined) {
+    const [originStop, destinationStop] = await Promise.all([
+      must(prisma, 'stop', originStopId, 'Origin terminal'),
+      must(prisma, 'stop', destinationStopId, 'Destination terminal'),
+    ]);
+    Object.assign(data, {
+      origin: originStop.name,
+      destination: destinationStop.name,
+      originStopId,
+      destinationStopId,
+    });
+  }
+  const route = await prisma.route.update({
+    where: { id: routeId },
+    data,
+    include: { originStop: true, destinationStop: true },
+  });
+  await audit(prisma, { actorId: request.user.id, action: 'ROUTE_UPDATED', metadata: { routeId }, ipAddress: ip(request) });
+  response.json({ success: true, data: { route } });
+}));
 adminRouter.patch('/routes/:routeId/status', validate(schemas.routeStatusSchema), asyncHandler(async (request, response) => { const routeId = id(request.params.routeId); await must(prisma, 'route', routeId, 'Route'); const route = await prisma.route.update({ where: { id: routeId }, data: { status: request.body.status } }); await audit(prisma, { actorId: request.user.id, action: 'ROUTE_STATUS_CHANGED', metadata: { routeId, status: request.body.status }, ipAddress: ip(request) }); response.json({ success: true, data: { route } }); }));
 adminRouter.delete('/routes/:routeId', asyncHandler(async (request, response) => { const routeId = id(request.params.routeId); await must(prisma, 'route', routeId, 'Route'); if (await prisma.trip.count({ where: { routeId } })) throw new AppError(409, 'Route has historical trips; deactivate it instead of deleting it.', 'HISTORICAL_RECORDS_EXIST'); await prisma.route.delete({ where: { id: routeId } }); response.json({ success: true, message: 'Route deleted.' }); }));
 
 adminRouter.post('/stops', validate(schemas.stopSchema), asyncHandler(async (request, response) => { const stop = await prisma.stop.create({ data: request.body }); await audit(prisma, { actorId: request.user.id, action: 'STOP_CREATED', metadata: { stopId: stop.id }, ipAddress: ip(request) }); response.status(201).json({ success: true, data: { stop } }); }));
 adminRouter.patch('/stops/:stopId', validate(schemas.stopPatchSchema), asyncHandler(async (request, response) => { const stopId = id(request.params.stopId); await must(prisma, 'stop', stopId, 'Stop'); const stop = await prisma.stop.update({ where: { id: stopId }, data: request.body }); response.json({ success: true, data: { stop } }); }));
-adminRouter.delete('/stops/:stopId', asyncHandler(async (request, response) => { const stopId = id(request.params.stopId); await must(prisma, 'stop', stopId, 'Stop'); if (await prisma.routeStop.count({ where: { stopId } })) throw new AppError(409, 'Stop is used by routes; remove those relationships first.', 'RELATIONSHIPS_EXIST'); await prisma.stop.delete({ where: { id: stopId } }); response.json({ success: true, message: 'Stop deleted.' }); }));
+adminRouter.delete('/stops/:stopId', asyncHandler(async (request, response) => {
+  const stopId = id(request.params.stopId);
+  await must(prisma, 'stop', stopId, 'Stop');
+  const [routeStopCount, endpointRouteCount] = await Promise.all([
+    prisma.routeStop.count({ where: { stopId } }),
+    prisma.route.count({ where: { OR: [{ originStopId: stopId }, { destinationStopId: stopId }] } }),
+  ]);
+  if (routeStopCount || endpointRouteCount) throw new AppError(409, 'Stop is used by a route endpoint or route stop; remove those relationships first.', 'RELATIONSHIPS_EXIST');
+  await prisma.stop.delete({ where: { id: stopId } });
+  response.json({ success: true, message: 'Stop deleted.' });
+}));
 
 adminRouter.post('/routes/:routeId/stops', validate(schemas.routeStopSchema), asyncHandler(async (request, response) => { const routeId = id(request.params.routeId); const { stopId, sequence, estimatedMinutesFromStart } = request.body; const routeStop = await prisma.$transaction(async (db) => { await must(db, 'route', routeId, 'Route'); await must(db, 'stop', stopId, 'Stop'); return db.routeStop.create({ data: { routeId, stopId, sequence, estimatedMinutesFromStart: estimatedMinutesFromStart ?? null } }); }); response.status(201).json({ success: true, data: { routeStop } }); }));
 publicRouter.get('/routes/:routeId/stops', asyncHandler(async (request, response) => { const routeId = id(request.params.routeId); await must(prisma, 'route', routeId, 'Route'); const stops = await prisma.routeStop.findMany({ where: { routeId }, include: { stop: true }, orderBy: { sequence: 'asc' } }); response.json({ success: true, data: { stops } }); }));
@@ -78,8 +123,8 @@ adminRouter.patch('/assignments/:assignmentId/end', asyncHandler(async (request,
 adminRouter.get('/vehicles/:vehicleId/assignments', asyncHandler(async (request, response) => { const vehicleId = id(request.params.vehicleId); await must(prisma, 'vehicle', vehicleId, 'Vehicle'); const assignments = await prisma.vehicleAssignment.findMany({ where: { vehicleId }, include: { driver: { select: { id: true, fullName: true, email: true, status: true } } }, orderBy: { assignedAt: 'desc' } }); response.json({ success: true, data: { assignments } }); }));
 adminRouter.get('/drivers/:driverId/assignments', asyncHandler(async (request, response) => { const driverId = id(request.params.driverId); const driver = await prisma.user.findFirst({ where: { id: driverId, role: 'DRIVER' } }); if (!driver) throw new AppError(404, 'Driver not found.', 'NOT_FOUND'); const assignments = await prisma.vehicleAssignment.findMany({ where: { driverId }, include: { vehicle: true }, orderBy: { assignedAt: 'desc' } }); response.json({ success: true, data: { assignments } }); }));
 
-publicRouter.get('/routes', asyncHandler(async (request, response) => { const { page: currentPage, limit, search } = page(request); const where = { status: 'ACTIVE', ...(search ? { OR: [{ name: { contains: search, mode: 'insensitive' } }, { origin: { contains: search, mode: 'insensitive' } }, { destination: { contains: search, mode: 'insensitive' } }] } : {}) }; const [routes, total] = await Promise.all([prisma.route.findMany({ where, orderBy: { name: 'asc' }, skip: (currentPage - 1) * limit, take: limit }), prisma.route.count({ where })]); response.json({ success: true, data: { routes: routes.map(publicRoute), pagination: { page: currentPage, limit, total, totalPages: Math.ceil(total / limit) } } }); }));
-publicRouter.get('/routes/:routeId', asyncHandler(async (request, response) => { const route = await prisma.route.findFirst({ where: { id: id(request.params.routeId), status: 'ACTIVE' }, include: { routeStops: { include: { stop: true }, orderBy: { sequence: 'asc' } } } }); if (!route) throw new AppError(404, 'Active route not found.', 'NOT_FOUND'); response.json({ success: true, data: { route } }); }));
+publicRouter.get('/routes', asyncHandler(async (request, response) => { const { page: currentPage, limit, search } = page(request); const where = { status: 'ACTIVE', ...(search ? { OR: [{ name: { contains: search, mode: 'insensitive' } }, { origin: { contains: search, mode: 'insensitive' } }, { destination: { contains: search, mode: 'insensitive' } }] } : {}) }; const [routes, total] = await Promise.all([prisma.route.findMany({ where, include: { originStop: true, destinationStop: true }, orderBy: { name: 'asc' }, skip: (currentPage - 1) * limit, take: limit }), prisma.route.count({ where })]); response.json({ success: true, data: { routes: routes.map(publicRoute), pagination: { page: currentPage, limit, total, totalPages: Math.ceil(total / limit) } } }); }));
+publicRouter.get('/routes/:routeId', asyncHandler(async (request, response) => { const route = await prisma.route.findFirst({ where: { id: id(request.params.routeId), status: 'ACTIVE' }, include: { originStop: true, destinationStop: true, routeStops: { include: { stop: true }, orderBy: { sequence: 'asc' } } } }); if (!route) throw new AppError(404, 'Active route not found.', 'NOT_FOUND'); response.json({ success: true, data: { route } }); }));
 publicRouter.get('/stops', asyncHandler(async (request, response) => { const { page: currentPage, limit, search } = page(request); const where = search ? { name: { contains: search, mode: 'insensitive' } } : {}; const [stops, total] = await Promise.all([prisma.stop.findMany({ where, orderBy: { name: 'asc' }, skip: (currentPage - 1) * limit, take: limit }), prisma.stop.count({ where })]); response.json({ success: true, data: { stops: stops.map(publicStop), pagination: { page: currentPage, limit, total, totalPages: Math.ceil(total / limit) } } }); }));
 publicRouter.get('/stops/:stopId', asyncHandler(async (request, response) => { const stop = await prisma.stop.findUnique({ where: { id: id(request.params.stopId) }, include: { routeStops: { include: { route: true }, orderBy: { sequence: 'asc' } } } }); if (!stop) throw new AppError(404, 'Stop not found.', 'NOT_FOUND'); response.json({ success: true, data: { stop } }); }));
 

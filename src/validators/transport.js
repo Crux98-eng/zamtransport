@@ -25,8 +25,13 @@ const vehicleSchema = z.object({ registrationNumber: z.string().trim().min(2).ma
 const vehiclePatchSchema = vehicleSchema.partial();
 const vehicleStatusSchema = z.object({ status: z.enum(['ACTIVE', 'INACTIVE', 'MAINTENANCE']) }).strict();
 
-const routeSchema = z.object({ name: z.string().trim().min(2).max(150), routeCode: z.string().trim().max(50).nullable().optional(), origin: z.string().trim().min(2).max(150), destination: z.string().trim().min(2).max(150), description: z.string().max(5000).nullable().optional(), distanceKm: z.coerce.number().nonnegative().max(99999999).nullable().optional(), estimatedDuration: z.coerce.number().int().positive().nullable().optional() }).strict();
-const routePatchSchema = routeSchema.partial();
+const routeFields = { name: z.string().trim().min(2).max(150), routeCode: z.string().trim().max(50).nullable().optional(), originStopId: z.coerce.number().int().positive(), destinationStopId: z.coerce.number().int().positive(), description: z.string().max(5000).nullable().optional(), distanceKm: z.coerce.number().nonnegative().max(99999999).nullable().optional(), estimatedDuration: z.coerce.number().int().positive().nullable().optional() };
+const routeSchema = z.object(routeFields).strict().refine((value) => value.originStopId !== value.destinationStopId, { path: ['destinationStopId'], message: 'Origin and destination terminals must be different.' });
+const routePatchSchema = z.object(routeFields).partial().strict().refine((value) => {
+  const hasOrigin = value.originStopId !== undefined;
+  const hasDestination = value.destinationStopId !== undefined;
+  return hasOrigin === hasDestination && (!hasOrigin || value.originStopId !== value.destinationStopId);
+}, { path: ['destinationStopId'], message: 'Select different origin and destination terminals together.' });
 const routeStatusSchema = z.object({ status: z.enum(['ACTIVE', 'INACTIVE']) }).strict();
 const stopSchema = z.object({ name: z.string().trim().min(2).max(150), description: z.string().max(5000).nullable().optional(), latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) }).strict();
 const stopPatchSchema = stopSchema.partial();

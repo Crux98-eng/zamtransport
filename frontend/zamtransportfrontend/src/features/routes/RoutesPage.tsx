@@ -22,13 +22,13 @@ import { Modal } from '@/components/ui/Modal'
 import { Notice } from '@/components/ui/Notice'
 import { apiMessage } from '@/services/api'
 import { routesService } from '@/services/routes'
-import type { RoutePayload, RouteStop, TransportRoute } from '@/types/routes'
+import type { RoutePayload, RouteStop, Stop, TransportRoute } from '@/types/routes'
 
 type RouteFormValues = {
   name: string
   routeCode: string
-  origin: string
-  destination: string
+  originStopId: string
+  destinationStopId: string
   description: string
   distanceKm: string
   estimatedDuration: string
@@ -43,8 +43,8 @@ function initialForm(route?: TransportRoute | null): RouteFormValues {
   return {
     name: route?.name ?? '',
     routeCode: route?.routeCode ?? '',
-    origin: route?.origin ?? '',
-    destination: route?.destination ?? '',
+    originStopId: route?.originStopId == null ? '' : String(route.originStopId),
+    destinationStopId: route?.destinationStopId == null ? '' : String(route.destinationStopId),
     description: route?.description ?? '',
     distanceKm: route?.distanceKm == null ? '' : String(route.distanceKm),
     estimatedDuration: route?.estimatedDuration == null ? '' : String(route.estimatedDuration),
@@ -57,16 +57,26 @@ function validateForm(values: RouteFormValues): FormErrors {
   const duration = values.estimatedDuration === '' ? null : Number(values.estimatedDuration)
   if (values.name.trim().length < 2 || values.name.trim().length > 150) errors.name = 'Enter a route name from 2 to 150 characters.'
   if (values.routeCode.trim().length > 50) errors.routeCode = 'Route code cannot exceed 50 characters.'
-  if (values.origin.trim().length < 2 || values.origin.trim().length > 150) errors.origin = 'Enter an origin from 2 to 150 characters.'
-  if (values.destination.trim().length < 2 || values.destination.trim().length > 150) errors.destination = 'Enter a destination from 2 to 150 characters.'
+  if (!values.originStopId) errors.originStopId = 'Select a starting terminal.'
+  if (!values.destinationStopId) errors.destinationStopId = 'Select a destination terminal.'
+  if (values.originStopId && values.originStopId === values.destinationStopId) errors.destinationStopId = 'Choose a different destination terminal.'
   if (values.description.length > 5000) errors.description = 'Description cannot exceed 5000 characters.'
   if (distance !== null && (!Number.isFinite(distance) || distance < 0 || distance > 99999999)) errors.distanceKm = 'Enter a distance from 0 to 99,999,999 km.'
   if (duration !== null && (!Number.isInteger(duration) || duration < 1)) errors.estimatedDuration = 'Enter a whole number greater than 0.'
   return errors
 }
 
-function routeDescription(route: Pick<TransportRoute, 'origin' | 'destination'>) {
-  return `${route.origin} to ${route.destination}`
+function routeDescription(route: Pick<TransportRoute, 'origin' | 'destination' | 'originStop' | 'destinationStop'>) {
+  return `${route.originStop?.name ?? route.origin} to ${route.destinationStop?.name ?? route.destination}`
+}
+
+function terminalCoordinates(stop?: Stop | null) {
+  if (!stop) return 'Coordinates unavailable'
+  const latitude = Number(stop.latitude)
+  const longitude = Number(stop.longitude)
+  return Number.isFinite(latitude) && Number.isFinite(longitude)
+    ? `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+    : 'Coordinates unavailable'
 }
 
 function RouteFormField({
@@ -223,7 +233,11 @@ export function RoutesPage() {
   const route = routeQuery.data
   const routeStops = route?.routeStops ?? []
   const attachedStopIds = new Set(routeStops.map((item) => item.stopId))
-  const availableStops = (stopsQuery.data ?? []).filter((stop) => !attachedStopIds.has(stop.id))
+  const terminals = stopsQuery.data ?? []
+  const endpointStopIds = new Set([route?.originStopId, route?.destinationStopId])
+  const availableStops = terminals.filter((stop) => !attachedStopIds.has(stop.id) && !endpointStopIds.has(stop.id))
+  const originTerminal = terminals.find((stop) => String(stop.id) === formValues.originStopId)
+  const destinationTerminal = terminals.find((stop) => String(stop.id) === formValues.destinationStopId)
   const mutationPending = saveMutation.isPending || deleteMutation.isPending
   const stopMutationPending = attachMutation.isPending || detachMutation.isPending || reorderMutation.isPending
 
@@ -257,8 +271,8 @@ export function RoutesPage() {
     const payload: RoutePayload = {
       name: formValues.name.trim(),
       routeCode: formValues.routeCode.trim() || null,
-      origin: formValues.origin.trim(),
-      destination: formValues.destination.trim(),
+      originStopId: Number(formValues.originStopId),
+      destinationStopId: Number(formValues.destinationStopId),
       description: formValues.description.trim() || null,
       distanceKm: formValues.distanceKm === '' ? null : Number(formValues.distanceKm),
       estimatedDuration: formValues.estimatedDuration === '' ? null : Number(formValues.estimatedDuration),
@@ -382,6 +396,10 @@ export function RoutesPage() {
                       <span className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
                         <RouteIcon size={15} /> {routeDescription(item)}
                       </span>
+                      <span className="mt-2 grid gap-1 text-xs text-ink-500 sm:grid-cols-2">
+                        <span>Start: {item.originStop?.name ?? item.origin} · {terminalCoordinates(item.originStop)}</span>
+                        <span>Destination: {item.destinationStop?.name ?? item.destination} · {terminalCoordinates(item.destinationStop)}</span>
+                      </span>
                     </button>
                     <div className="flex items-center gap-2">
                       <Button variant="secondary" size="sm" onClick={() => openEditForm(item)} disabled={mutationPending}>Edit</Button>
@@ -436,6 +454,12 @@ export function RoutesPage() {
                         <Badge tone="success">ACTIVE</Badge>
                       </div>
                       <p className="mt-1 text-sm text-ink-500">{routeDescription(route)}</p>
+                      <p className="mt-2 text-xs text-ink-500">
+                        Start: {route.originStop?.name ?? route.origin} · {terminalCoordinates(route.originStop)}
+                      </p>
+                      <p className="mt-1 text-xs text-ink-500">
+                        Destination: {route.destinationStop?.name ?? route.destination} · {terminalCoordinates(route.destinationStop)}
+                      </p>
                     </div>
                     <Badge tone="info">{routeStops.length} stops</Badge>
                   </div>
@@ -575,7 +599,7 @@ export function RoutesPage() {
         footer={
           <>
             <Button type="button" variant="secondary" onClick={() => { setFormOpen(false); setEditingRoute(null) }} disabled={saveMutation.isPending}>Cancel</Button>
-            <Button type="submit" form="route-form" disabled={saveMutation.isPending}>
+            <Button type="submit" form="route-form" disabled={saveMutation.isPending || stopsQuery.isLoading || stopsQuery.isError || terminals.length < 2}>
               {saveMutation.isPending && <LoaderCircle size={16} className="animate-spin" />}
               {editingRoute ? 'Save changes' : 'Create route'}
             </Button>
@@ -584,11 +608,33 @@ export function RoutesPage() {
       >
         <form id="route-form" onSubmit={submitForm} className="space-y-4" noValidate>
           {saveMutation.isError && <Notice>{apiMessage(saveMutation.error)}</Notice>}
+          {stopsQuery.isError && <Notice>Terminals could not be loaded: {apiMessage(stopsQuery.error)}</Notice>}
+          {!stopsQuery.isError && stopsQuery.data && terminals.length < 2 && (
+            <p role="note" className="rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-sm text-brand-700">
+              Create at least two terminals before creating a route.
+            </p>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <RouteFormField id="route-name" label="Route name *" value={formValues.name} error={formErrors.name} onChange={(value) => updateForm('name', value)} maxLength={150} />
             <RouteFormField id="route-code" label="Route code" value={formValues.routeCode} error={formErrors.routeCode} onChange={(value) => updateForm('routeCode', value)} maxLength={50} />
-            <RouteFormField id="route-origin" label="Origin *" value={formValues.origin} error={formErrors.origin} onChange={(value) => updateForm('origin', value)} maxLength={150} />
-            <RouteFormField id="route-destination" label="Destination *" value={formValues.destination} error={formErrors.destination} onChange={(value) => updateForm('destination', value)} maxLength={150} />
+            <div>
+              <label htmlFor="route-origin-stop" className="block text-sm font-semibold text-ink-700">Starting terminal *</label>
+              <select id="route-origin-stop" value={formValues.originStopId} onChange={(event) => updateForm('originStopId', event.target.value)} className={inputClass} disabled={stopsQuery.isLoading || stopsQuery.isError || terminals.length === 0}>
+                <option value="">Select a terminal</option>
+                {terminals.map((terminal) => <option key={terminal.id} value={terminal.id}>{terminal.name}</option>)}
+              </select>
+              {originTerminal && <p className="mt-1 text-xs text-ink-500">Coordinates: {terminalCoordinates(originTerminal)}</p>}
+              {formErrors.originStopId && <p className="mt-1 text-xs text-danger-500">{formErrors.originStopId}</p>}
+            </div>
+            <div>
+              <label htmlFor="route-destination-stop" className="block text-sm font-semibold text-ink-700">Destination terminal *</label>
+              <select id="route-destination-stop" value={formValues.destinationStopId} onChange={(event) => updateForm('destinationStopId', event.target.value)} className={inputClass} disabled={stopsQuery.isLoading || stopsQuery.isError || terminals.length === 0}>
+                <option value="">Select a terminal</option>
+                {terminals.map((terminal) => <option key={terminal.id} value={terminal.id}>{terminal.name}</option>)}
+              </select>
+              {destinationTerminal && <p className="mt-1 text-xs text-ink-500">Coordinates: {terminalCoordinates(destinationTerminal)}</p>}
+              {formErrors.destinationStopId && <p className="mt-1 text-xs text-danger-500">{formErrors.destinationStopId}</p>}
+            </div>
             <RouteFormField id="route-distance" label="Distance (km)" type="number" value={formValues.distanceKm} error={formErrors.distanceKm} onChange={(value) => updateForm('distanceKm', value)} min={0} max={99999999} step="any" />
             <RouteFormField id="route-duration" label="Estimated duration (minutes)" type="number" value={formValues.estimatedDuration} error={formErrors.estimatedDuration} onChange={(value) => updateForm('estimatedDuration', value)} min={1} step={1} />
           </div>

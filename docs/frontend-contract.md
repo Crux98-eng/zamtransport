@@ -102,8 +102,8 @@ mean an active bearer token with that exact role is required.
 
 | Method | Endpoint | Access | Purpose |
 | --- | --- | --- | --- |
-| GET | /api/v1/routes | Public | Paginated active routes |
-| GET | /api/v1/routes/:routeId | Public | One active route with ordered `routeStops` |
+| GET | /api/v1/routes | Public | Paginated active routes with endpoint terminals and coordinates |
+| GET | /api/v1/routes/:routeId | Public | One active route with endpoint terminals, coordinates, and ordered `routeStops` |
 | GET | /api/v1/routes/:routeId/stops | Public | Ordered stops for a route |
 | GET | /api/v1/stops | Public | Paginated stops |
 | GET | /api/v1/stops/:stopId | Public | Stop plus route relationships |
@@ -199,9 +199,11 @@ the access token, so the frontend must never send a driver ID for these calls.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| GET | /api/v1/driver/trips | Assigned upcoming trips (`includePast=true` includes old trips) |
+| GET | /api/v1/driver/trips | Assigned scheduled and active trips (`includePast=true` includes old trips) |
 | GET | /api/v1/driver/trips/history | Completed, cancelled, or past assigned trips |
 | GET | /api/v1/driver/trips/:id | Assigned trip detail |
+| PATCH | /api/v1/driver/trips/:id/accept | Accept a scheduled trip and move it to `BOARDING` |
+| PATCH | /api/v1/driver/trips/:id/decline | Decline a scheduled trip with a reason |
 | PATCH | /api/v1/driver/trips/:id/boarding | Transition to `BOARDING` |
 | PATCH | /api/v1/driver/trips/:id/start | Transition to `IN_PROGRESS` and record actual departure |
 | PATCH | /api/v1/driver/trips/:id/complete | Transition to `COMPLETED` and record actual arrival |
@@ -289,7 +291,7 @@ type VehicleBody = {
   manufactureYear?: number | null; description?: string | null;
 };
 type RouteBody = {
-  name: string; origin: string; destination: string; routeCode?: string | null;
+  name: string; originStopId: number; destinationStopId: number; routeCode?: string | null;
   description?: string | null; distanceKm?: number | null; estimatedDuration?: number | null;
 };
 type StopBody = { name: string; latitude: number; longitude: number; description?: string | null };
@@ -438,9 +440,11 @@ user and are scoped to that user.
 Driver details add `driverProfile`/`profile` with `licenceNumber`,
 `licenceExpiry`, and `address`.
 
-`Route` has `id`, `name`, `routeCode`, `origin`, `destination`, `description`,
-`distanceKm`, `estimatedDuration`, `status`, and timestamps. Route details use
-`routeStops`, each carrying `sequence`, `estimatedMinutesFromStart`, and `stop`.
+`Route` has `id`, `name`, `routeCode`, `origin`, `destination`, endpoint stop
+IDs, and optional `originStop`/`destinationStop` relations containing terminal
+coordinates. Legacy routes may lack those relations until updated. Route details
+also use `routeStops`, each carrying `sequence`, `estimatedMinutesFromStart`,
+and `stop`.
 
 `Schedule` has `id`, `routeId`, `description`, `departureTime`,
 `estimatedDuration`, `effectiveFrom`, `effectiveUntil`, `status`, timestamps,

@@ -1,13 +1,14 @@
 const prisma = require('../lib/prisma');
 const { trackingConfig } = require('../lib/tracking-config');
 const { distanceKm } = require('./geo');
+const { orderedRouteStops } = require('./route-path');
 
 async function calculateForTrip(tripId) {
-  const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { route: { include: { routeStops: { include: { stop: true }, orderBy: { sequence: 'asc' } } } }, vehicle: true } });
+  const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { route: { include: { originStop: true, destinationStop: true, routeStops: { include: { stop: true }, orderBy: { sequence: 'asc' } } } }, vehicle: true } });
   if (!trip) return { available: false, reason: 'TRIP_NOT_FOUND' };
   if (!trip.vehicleId) return { available: false, reason: 'TRIP_UNASSIGNED', trip };
   const location = await prisma.vehicleLocation.findFirst({ where: { tripId, vehicleId: trip.vehicleId }, orderBy: { recordedAt: 'desc' } });
-  const stops = trip.route.routeStops.map((item) => item.stop);
+  const stops = orderedRouteStops(trip.route);
   if (!location) return { available: false, reason: 'LOCATION_UNAVAILABLE', trip };
   if (!stops.length) return { available: false, reason: 'DESTINATION_UNAVAILABLE', trip, location };
   const point = { latitude: Number(location.latitude), longitude: Number(location.longitude) };

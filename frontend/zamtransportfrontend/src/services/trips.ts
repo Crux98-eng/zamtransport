@@ -3,7 +3,7 @@ import type { ApiEnvelope } from '@/types/api'
 import type { Trip, TripListResponse, TripPayload, TripStatus } from '@/types/trips'
 
 export const tripsService = {
-  async list(params: { page?: number; limit?: number; search?: string; tripStatus?: TripStatus; routeId?: number; scheduleId?: number }) {
+  async list(params: { page?: number; limit?: number; tripCode?: string; tripStatus?: TripStatus; routeId?: number; scheduleId?: number }) {
     const response = await api.get<ApiEnvelope<TripListResponse>>('/admin/trips', { params })
     return response.data.data
   },
@@ -25,6 +25,27 @@ export const tripsService = {
   },
   async cancel(tripId: number, reason: string) {
     const response = await api.patch<ApiEnvelope<{ trip: Trip }>>(`/admin/trips/${tripId}/cancel`, { reason })
+    return response.data.data.trip
+  },
+  // ------- Driver‑side helpers --------
+  async driverList(params: { page?: number; limit?: number; includePast?: boolean }) {
+    const response = await api.get<ApiEnvelope<TripListResponse>>('/driver/trips', { params })
+    return response.data.data
+  },
+  async accept(tripId: number) {
+    const response = await api.patch<ApiEnvelope<{ trip: Trip }>>(`/driver/trips/${tripId}/accept`)
+    return response.data.data.trip
+  },
+  async decline(tripId: number, reason: string) {
+    const response = await api.patch<ApiEnvelope<{ trip: Trip }>>(`/driver/trips/${tripId}/decline`, { reason })
+    return response.data.data.trip
+  },
+  async start(tripId: number) {
+    const response = await api.patch<ApiEnvelope<{ trip: Trip }>>(`/driver/trips/${tripId}/start`)
+    return response.data.data.trip
+  },
+  async complete(tripId: number) {
+    const response = await api.patch<ApiEnvelope<{ trip: Trip }>>(`/driver/trips/${tripId}/complete`)
     return response.data.data.trip
   },
 }

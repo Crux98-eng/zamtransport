@@ -2,12 +2,13 @@ const prisma = require('../lib/prisma');
 const AppError = require('../errors/app-error');
 const { trackingConfig } = require('../lib/tracking-config');
 const { bearing, distanceKm, interpolate } = require('./geo');
+const { orderedRouteStops } = require('./route-path');
 const { emitLocation } = require('./socket');
 
 const tasks = new Map();
 
 function orderedStops(route) {
-  const stops = route.routeStops.map((item) => ({ ...item.stop, sequence: item.sequence }));
+  const stops = orderedRouteStops(route);
   if (stops.length < 2) throw new AppError(409, 'A tracked route must have at least two ordered stops.', 'TRACKING_ROUTE_STOPS_REQUIRED');
   return stops;
 }
@@ -48,7 +49,7 @@ function schedule(task) { task.timer = setTimeout(() => tick(task.tripId), track
 async function start(tripId) {
   const existing = tasks.get(tripId); if (existing) return { started: false, simulation: await prisma.trackingSimulation.findUnique({ where: { tripId } }) };
   const config = trackingConfig(); if (tasks.size >= config.maxConcurrent) throw new AppError(409, 'Maximum concurrent simulations reached.', 'SIMULATION_CAPACITY_REACHED');
-  const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { route: { include: { routeStops: { include: { stop: true }, orderBy: { sequence: 'asc' } } } } } });
+  const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { route: { include: { originStop: true, destinationStop: true, routeStops: { include: { stop: true }, orderBy: { sequence: 'asc' } } } } } });
   if (!trip) throw new AppError(404, 'Trip not found.', 'NOT_FOUND');
   if (trip.status !== 'IN_PROGRESS') throw new AppError(409, 'Only in-progress trips can be simulated.', 'TRIP_NOT_IN_PROGRESS');
   if (!trip.vehicleId || !trip.driverId) throw new AppError(409, 'Trip needs an assigned driver and vehicle.', 'TRIP_ASSIGNMENT_REQUIRED');

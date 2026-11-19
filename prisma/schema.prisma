@@ -91,40 +91,40 @@ enum ReportStatus {
 }
 
 model User {
-  id                 Int                 @id @default(autoincrement())
-  fullName           String              @db.VarChar(150)
-  email              String              @unique @db.VarChar(191)
-  phoneNumber        String?             @db.VarChar(30)
-  passwordHash       String              @db.VarChar(255)
-  role               UserRole            @default(COMMUTER)
-  status             UserStatus          @default(PENDING)
-  approvedAt         DateTime?
-  approvedById       Int?
-  rejectedAt         DateTime?
-  rejectedById       Int?
-  rejectionReason    String?
-  suspendedAt        DateTime?
-  suspendedById      Int?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  driverProfile      DriverProfile?
-  drivenTrips        Trip[]              @relation("TripDriver")
-  vehicleAssignments VehicleAssignment[] @relation("AssignmentDriver")
-  notifications      Notification[]
+  id                     Int                     @id @default(autoincrement())
+  fullName               String                  @db.VarChar(150)
+  email                  String                  @unique @db.VarChar(191)
+  phoneNumber            String?                 @db.VarChar(30)
+  passwordHash           String                  @db.VarChar(255)
+  role                   UserRole                @default(COMMUTER)
+  status                 UserStatus              @default(PENDING)
+  approvedAt             DateTime?
+  approvedById           Int?
+  rejectedAt             DateTime?
+  rejectedById           Int?
+  rejectionReason        String?
+  suspendedAt            DateTime?
+  suspendedById          Int?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  driverProfile          DriverProfile?
+  drivenTrips            Trip[]                  @relation("TripDriver")
+  vehicleAssignments     VehicleAssignment[]     @relation("AssignmentDriver")
+  notifications          Notification[]
   notificationPreference NotificationPreference?
-  approvedUsers      User[]              @relation("ApprovedBy")
-  approvedBy         User?               @relation("ApprovedBy", fields: [approvedById], references: [id])
-  rejectedUsers      User[]              @relation("RejectedBy")
-  rejectedBy         User?               @relation("RejectedBy", fields: [rejectedById], references: [id])
-  suspendedUsers     User[]              @relation("SuspendedBy")
-  suspendedBy        User?               @relation("SuspendedBy", fields: [suspendedById], references: [id])
-  cancelledTrips     Trip[]              @relation("TripCancelledBy")
-  tripAssignments    TripAssignment[]    @relation("TripAssignmentDriver")
-  tripStatusChanges  TripStatusHistory[] @relation("TripStatusActor")
-  refreshTokens      RefreshToken[]
-  auditEvents        AuditLog[]          @relation("AuditActor")
-  auditTargets       AuditLog[]          @relation("AuditTarget")
-  generatedReports   Report[]            @relation("ReportGenerator")
+  approvedUsers          User[]                  @relation("ApprovedBy")
+  approvedBy             User?                   @relation("ApprovedBy", fields: [approvedById], references: [id])
+  rejectedUsers          User[]                  @relation("RejectedBy")
+  rejectedBy             User?                   @relation("RejectedBy", fields: [rejectedById], references: [id])
+  suspendedUsers         User[]                  @relation("SuspendedBy")
+  suspendedBy            User?                   @relation("SuspendedBy", fields: [suspendedById], references: [id])
+  cancelledTrips         Trip[]                  @relation("TripCancelledBy")
+  tripAssignments        TripAssignment[]        @relation("TripAssignmentDriver")
+  tripStatusChanges      TripStatusHistory[]     @relation("TripStatusActor")
+  refreshTokens          RefreshToken[]
+  auditEvents            AuditLog[]              @relation("AuditActor")
+  auditTargets           AuditLog[]              @relation("AuditTarget")
+  generatedReports       Report[]                @relation("ReportGenerator")
 
   @@index([role])
   @@index([status])
@@ -132,19 +132,19 @@ model User {
 }
 
 model Report {
-  id          String       @id @default(cuid())
-  type        ReportType
-  format      ReportFormat
-  status      ReportStatus @default(COMPLETED)
+  id            String       @id @default(cuid())
+  type          ReportType
+  format        ReportFormat
+  status        ReportStatus @default(COMPLETED)
   generatedById Int
-  startDate   DateTime?    @db.Date
-  endDate     DateTime?    @db.Date
-  filters     Json?
-  storagePath String?      @db.VarChar(500)
-  fileName    String?      @db.VarChar(255)
-  errorMessage String?
-  createdAt   DateTime     @default(now())
-  generatedBy User         @relation("ReportGenerator", fields: [generatedById], references: [id])
+  startDate     DateTime?    @db.Date
+  endDate       DateTime?    @db.Date
+  filters       Json?
+  storagePath   String?      @db.VarChar(500)
+  fileName      String?      @db.VarChar(255)
+  errorMessage  String?
+  createdAt     DateTime     @default(now())
+  generatedBy   User         @relation("ReportGenerator", fields: [generatedById], references: [id])
 
   @@index([generatedById, createdAt])
   @@index([type, createdAt])
@@ -173,14 +173,14 @@ model RefreshToken {
 }
 
 model NotificationPreference {
-  id            Int      @id @default(autoincrement())
-  userId        Int      @unique
-  inAppEnabled  Boolean  @default(true)
-  emailEnabled  Boolean  @default(false)
-  mutedTypes    Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id])
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique
+  inAppEnabled Boolean  @default(true)
+  emailEnabled Boolean  @default(false)
+  mutedTypes   Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id])
 
   @@map("notification_preferences")
 }
@@ -221,23 +221,23 @@ model DriverProfile {
 }
 
 model Vehicle {
-  id                 Int                 @id @default(autoincrement())
-  registrationNumber String              @unique @db.VarChar(50)
-  vehicleName        String?             @db.VarChar(100)
-  manufacturer       String?             @db.VarChar(100)
-  model              String?             @db.VarChar(100)
-  vehicleType        String              @db.VarChar(50)
-  capacity           Int
-  manufactureYear    Int?
-  description        String?
-  status             VehicleStatus       @default(ACTIVE)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  trips              Trip[]
-  assignments        VehicleAssignment[]
-  locations          VehicleLocation[]
-  maintenanceRecords MaintenanceRecord[]
-  tripAssignments    TripAssignment[]
+  id                  Int                  @id @default(autoincrement())
+  registrationNumber  String               @unique @db.VarChar(50)
+  vehicleName         String?              @db.VarChar(100)
+  manufacturer        String?              @db.VarChar(100)
+  model               String?              @db.VarChar(100)
+  vehicleType         String               @db.VarChar(50)
+  capacity            Int
+  manufactureYear     Int?
+  description         String?
+  status              VehicleStatus        @default(ACTIVE)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  trips               Trip[]
+  assignments         VehicleAssignment[]
+  locations           VehicleLocation[]
+  maintenanceRecords  MaintenanceRecord[]
+  tripAssignments     TripAssignment[]
   trackingSimulations TrackingSimulation[]
 
   @@index([status])
@@ -250,28 +250,36 @@ model Route {
   routeCode         String?     @unique @db.VarChar(50)
   origin            String      @db.VarChar(150)
   destination       String      @db.VarChar(150)
+  originStopId      Int?
+  destinationStopId Int?
   description       String?
   distanceKm        Decimal?    @db.Decimal(10, 2)
   estimatedDuration Int?
   status            RouteStatus @default(ACTIVE)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+  originStop        Stop?       @relation("RouteOriginStop", fields: [originStopId], references: [id], onDelete: Restrict)
+  destinationStop   Stop?       @relation("RouteDestinationStop", fields: [destinationStopId], references: [id], onDelete: Restrict)
   routeStops        RouteStop[]
   schedules         Schedule[]
   trips             Trip[]
 
   @@index([status])
+  @@index([originStopId])
+  @@index([destinationStopId])
   @@map("routes")
 }
 
 model Stop {
-  id          Int         @id @default(autoincrement())
-  name        String      @db.VarChar(150)
-  description String?
-  latitude    Decimal     @db.Decimal(10, 7)
-  longitude   Decimal     @db.Decimal(10, 7)
-  createdAt   DateTime    @default(now())
-  routeStops  RouteStop[]
+  id                Int         @id @default(autoincrement())
+  name              String      @db.VarChar(150)
+  description       String?
+  latitude          Decimal     @db.Decimal(10, 7)
+  longitude         Decimal     @db.Decimal(10, 7)
+  createdAt         DateTime    @default(now())
+  originRoutes      Route[]     @relation("RouteOriginStop")
+  destinationRoutes Route[]     @relation("RouteDestinationStop")
+  routeStops        RouteStop[]
 
   @@map("stops")
 }
@@ -447,16 +455,16 @@ model TrackingSimulation {
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   userId    Int
-  title     String   @db.VarChar(150)
+  title     String    @db.VarChar(150)
   message   String
-  type      String   @db.VarChar(50)
-  isRead    Boolean  @default(false)
+  type      String    @db.VarChar(50)
+  isRead    Boolean   @default(false)
   readAt    DateTime?
-  dedupeKey String?  @unique @db.VarChar(191)
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  dedupeKey String?   @unique @db.VarChar(191)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead, createdAt])
   @@index([type, createdAt])

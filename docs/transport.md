@@ -49,9 +49,13 @@ assignment requires `ACTIVE` status.
 - Admin: `POST/PATCH/DELETE /api/v1/admin/stops`.
 - Admin: `POST /admin/routes/:routeId/stops`, `PATCH /admin/routes/:routeId/stops/reorder`, `DELETE /admin/routes/:routeId/stops/:stopId`.
 
-Route creation requires name, origin, and destination. Stop coordinates are
-validated as latitude `-90..90` and longitude `-180..180`. Reordering is
-transactional and requires every route stop exactly once with unique sequences.
+Route creation requires a name and distinct `originStopId` and
+`destinationStopId` values. Route origin/destination names are taken from those
+terminals; route responses include the selected terminals and their coordinates.
+Existing routes remain readable without endpoint relations until they are
+updated. Stop coordinates are validated as latitude `-90..90` and longitude
+`-180..180`. Reordering is transactional and requires every route stop exactly
+once with unique sequences.
 Historical routes and stops cannot be deleted when operational relationships
 exist.
 

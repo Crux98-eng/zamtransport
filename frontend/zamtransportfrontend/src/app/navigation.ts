@@ -12,6 +12,7 @@ export const navigationGroups: NavigationGroup[] = [
   ] },
   { label: 'Operations', items: [
     { label: 'Trips', to: '/operations/trips', icon: ClipboardList, roles: ['ADMIN'] },
+    { label: 'My trips', to: '/driver/trips', icon: ClipboardList, roles: ['DRIVER'] },
     { label: 'Schedules', to: '/operations/schedules', icon: ClipboardList, roles: ['ADMIN'] },
     { label: 'Routes', to: '/operations/routes', icon: Route, roles: ['ADMIN'] },
     { label: 'Terminals', to: '/operations/terminals', icon: MapPinned, roles: ['ADMIN'] },
@@ -43,6 +44,7 @@ export const futureNavigationCandidates = ['Bookings: no booking API currently e
 
 const pageLabels: Array<{ pattern: string; label: string; parent?: Breadcrumb }> = [
   { pattern: '/dashboard', label: 'Dashboard' },
+  { pattern: '/driver/trips', label: 'My trips' },
   { pattern: '/notifications', label: 'Notifications' },
   { pattern: '/profile', label: 'My profile' },
   { pattern: '/operations/trips', label: 'Trips' }, { pattern: '/operations/schedules', label: 'Schedules' }, { pattern: '/operations/routes', label: 'Routes' }, { pattern: '/operations/terminals', label: 'Terminals' },
