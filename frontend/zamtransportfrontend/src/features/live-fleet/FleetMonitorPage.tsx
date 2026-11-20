@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Marker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
+import { Marker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 import { divIcon } from 'leaflet'
 import type { Map as LeafletMap } from 'leaflet'
 import {
@@ -24,7 +24,9 @@ import { apiMessage } from '@/services/api'
 import { connectSocket } from '@/services/socket'
 import { getAccessToken } from '@/stores/auth-store'
 import { vehiclesService } from '@/services/vehicles'
+import { routesService } from '@/services/routes'
 import type { VehicleListItem, VehicleStatus } from '@/types/vehicles'
+import type { TransportRoute } from '@/types/routes'
 import { trackingService } from './liveVehicles.api'
 import type { LiveVehicleLocation, VehicleEta, VehicleLocationUpdate } from './liveLocation.types'
 
@@ -91,6 +93,20 @@ function locationFreshness(location: LiveVehicleLocation | null, now: number) {
   return Number.isFinite(age) && age >= 0 && age <= GPS_FRESHNESS_MS ? 'fresh' : 'stale'
 }
 
+function routeCoordinates(route: TransportRoute | undefined): [number, number][] {
+  if (!route?.originStop || !route.destinationStop || route.originStop.id === route.destinationStop.id) return []
+  const stops = [route.originStop, route.destinationStop]
+
+  return stops.flatMap((stop) => {
+    const latitude = Number(stop.latitude)
+    const longitude = Number(stop.longitude)
+    return Number.isFinite(latitude) && latitude >= -90 && latitude <= 90
+      && Number.isFinite(longitude) && longitude >= -180 && longitude <= 180
+      ? [[latitude, longitude] as [number, number]]
+      : []
+  })
+}
+
 function vehicleMarkerIcon(color: string, selected: boolean) {
   const size = selected ? 42 : 36
   const borderColor = selected ? '#ff5a2b' : '#ffffff'
@@ -133,6 +149,16 @@ function MapView({ positions }: { positions: [number, number][] }) {
       return
     }
     map.fitBounds(positions, { padding: [40, 40], maxZoom: 13 })
+  }, [map, positions])
+
+  return null
+}
+
+function FitRoute({ positions }: { positions: [number, number][] }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (positions.length > 1) map.fitBounds(positions, { padding: [40, 40], maxZoom: 9 })
   }, [map, positions])
 
   return null
@@ -474,6 +500,19 @@ export function FleetMonitorPage() {
     ? selectedId
     : vehicles.find((vehicle) => vehicle.location)?.id ?? vehicles[0]?.id ?? null
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === resolvedSelectedId) ?? null
+  const selectedRouteId = selectedVehicle?.location?.routeId
+  const routeQuery = useQuery({
+    queryKey: ['tracking', 'route', selectedRouteId],
+    queryFn: () => {
+      if (selectedRouteId === undefined) throw new Error('The selected vehicle has no route.')
+      return routesService.get(selectedRouteId)
+    },
+    enabled: selectedRouteId !== undefined,
+  })
+  const selectedRoutePositions = useMemo(
+    () => routeCoordinates(routeQuery.data),
+    [routeQuery.data],
+  )
   const etaQuery = useQuery({
     queryKey: ['tracking', 'vehicle-eta', resolvedSelectedId],
     queryFn: () => selectedVehicle
@@ -579,17 +618,29 @@ export function FleetMonitorPage() {
               <div>
                 <h2 className="font-bold text-ink-900">Fleet map</h2>
                 <p className="text-xs text-ink-500">{positions.length} vehicles with a current tracked location</p>
+                {routeQuery.isError && (
+                  <p role="alert" className="mt-1 text-xs text-danger-600">
+                    Route line unavailable: {apiMessage(routeQuery.error)}
+                  </p>
+                )}
               </div>
               <span className="inline-flex items-center gap-1.5 text-xs text-ink-500"><MapPin size={14} /> OpenStreetMap</span>
             </div>
             <div className="h-[min(62vh,680px)] min-h-[420px]">
               <MapContainer center={[-13.133897, 27.849332]} zoom={6} scrollWheelZoom className="h-full w-full">
                 <MapView positions={positions} />
+                <FitRoute positions={selectedRoutePositions} />
                 <MapMapRef onReady={onMapReady} />
                 <TileLayer
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                {selectedRoutePositions.length > 1 && (
+                  <Polyline
+                    positions={selectedRoutePositions}
+                    pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.8, lineCap: 'round', lineJoin: 'round' }}
+                  />
+                )}
                 {vehicles.map((vehicle) => {
                   const location = vehicle.location
                   if (!location || !isValidLocation(location)) return null
