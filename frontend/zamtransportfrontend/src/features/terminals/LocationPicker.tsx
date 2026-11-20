@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { Polyline } from 'react-leaflet'
+
 import { divIcon, type LatLngExpression, type Marker as LeafletMarker } from 'leaflet'
 import { Crosshair, LoaderCircle, MapPin, Search, Trash2 } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
