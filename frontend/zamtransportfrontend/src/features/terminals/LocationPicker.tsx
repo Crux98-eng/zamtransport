@@ -1,7 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
-import { Polyline } from 'react-leaflet'
 
-import { divIcon, type LatLngExpression, type Marker as LeafletMarker } from 'leaflet'
+
+import { divIcon, type LatLngExpression, type Marker as LeafletMarker } from 'leaflet';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+// Component to draw a route between two points using Leaflet Routing Machine
+function RouteDrawer({ from, to }: { from: LatLngExpression | null; to: LatLngExpression | null }) {
+  const map = useMap();
+  const controlRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Remove previous control if any
+    if (controlRef.current) {
+      map.removeControl(controlRef.current);
+      controlRef.current = null;
+    }
+    // Add routing control when both points are available
+    if (from && to) {
+      const control = (L as any).Routing.control({
+        waypoints: [(L as any).latLng(from), (L as any).latLng(to)],
+        lineOptions: { styles: [{ color: '#ff6600', weight: 4, opacity: 0.7 }] },
+        createMarker: () => null, // suppress default markers
+        routeWhileDragging: false,
+        fitSelectedRoutes: false,
+        show: false,
+      }).addTo(map);
+      controlRef.current = control;
+    }
+  }, [map, from, to]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (controlRef.current) {
+        map.removeControl(controlRef.current);
+        controlRef.current = null;
+      }
+    };
+  }, [map]);
+
+  return null;
+}
+
+
 import { Crosshair, LoaderCircle, MapPin, Search, Trash2 } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
 import { Button } from '@/components/ui/Button'
@@ -55,7 +96,9 @@ export function LocationPicker({ latitude, longitude, address, onChange, onClear
   const initialReverseRef = useRef('')
   const reverseRequestRef = useRef(0)
   const initialCoordinatesRef = useRef({ latitude, longitude })
-  const initialAddressRef = useRef(address)
+  const initialAddressRef = useRef(address);
+// Track previous location to draw route between successive points
+const previousLocationRef = useRef<LatLngExpression | null>(null);
 
   const latitudeNumber = Number(latitude)
   const longitudeNumber = Number(longitude)
@@ -67,7 +110,12 @@ export function LocationPicker({ latitude, longitude, address, onChange, onClear
     && Number.isFinite(longitudeNumber)
     && longitudeNumber >= -180
     && longitudeNumber <= 180
-  const position: LatLngExpression | null = hasPosition ? [latitudeNumber, longitudeNumber] : null
+  useEffect(() => {
+  if (hasPosition && position) {
+    previousLocationRef.current = position as LatLngExpression;
+  }
+}, [position, hasPosition]);
+
 
   useEffect(() => {
     const initialCoordinates = initialCoordinatesRef.current
@@ -260,12 +308,16 @@ export function LocationPicker({ latitude, longitude, address, onChange, onClear
           <MapController position={position} hasPosition={hasPosition} />
           <MapClickHandler onSelect={(latitudeValue, longitudeValue) => void reverse(latitudeValue, longitudeValue)} />
           {position && (
-            <Marker
-              position={position}
-              icon={markerIcon}
-              draggable
-              eventHandlers={{ dragend: (event) => dragMarker(event.target as LeafletMarker) }}
-            />
+            <>
+              <Marker
+                position={position}
+                icon={markerIcon}
+                draggable
+                eventHandlers={{ dragend: (event) => dragMarker(event.target as LeafletMarker) }}
+              />
+              {/* Draw route from previous location to current */}
+              <RouteDrawer from={previousLocationRef.current} to={position} />
+            </>
           )}
         </MapContainer>
       </div>
