@@ -1,4 +1,4 @@
-import { Navigate, createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { LoginPage } from '@/features/auth/LoginPage'
@@ -27,8 +27,7 @@ export const router = createBrowserRouter([
   { path: '/register', element: <GuestGuard><RegisterPage /></GuestGuard> },
   { path: '/pending-approval', element: <PendingApprovalPage /> },
   { path: '/unauthorized', element: <UnauthorizedPage /> },
-  { path: '/', element: <ProtectedRoute><ApprovalGuard><AppShell /></ApprovalGuard></ProtectedRoute>, children: [
-    { index: true, element: <Navigate to="/dashboard" replace /> },
+  { element: <ProtectedRoute><ApprovalGuard><AppShell /></ApprovalGuard></ProtectedRoute>, children: [
     { path: 'dashboard', element: <DashboardPage /> },
     { path: 'notifications', element: <NotificationsPage /> },
     { path: 'profile', element: <ProfilePage /> },

@@ -18,7 +18,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   const auth = useAuth()
   const location = useLocation()
   if (auth.phase === 'initializing') return <FullPageLoading />
-  if (auth.phase !== 'authenticated') return <Navigate to="/login" replace state={{ from: returnTo(location), message: auth.message }} />
+  if (auth.phase !== 'authenticated') return <Navigate to="/" replace state={{ from: returnTo(location), message: auth.message }} />
   return <>{children}</>
 }
 
