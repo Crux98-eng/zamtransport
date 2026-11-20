@@ -1,4 +1,4 @@
-import { ArrowRight, BusFront, CheckCircle2, Sparkles } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 // import heroImage from '@/assets/transport-hero.jpg'
 import logo from '@/assets/logo.png'
