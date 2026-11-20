@@ -177,25 +177,49 @@ export function LocationPicker({ latitude, longitude, address, onChange, onClear
 
   return (
     <div className="space-y-3">
-      <form onSubmit={(event) => { event.preventDefault(); void search() }} className="flex min-w-0 gap-2">
+          <div
+        className="flex min-w-0 gap-2"
+        onKeyDown={e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            void search();
+          }
+        }}
+      >
         <div className="relative min-w-0 flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" size={16} />
           <input
+            type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search place, town, street or landmark..."
             className="h-11 w-full rounded-lg border border-ink-100 bg-ink-50 pl-9 pr-3 text-sm outline-none focus:border-brand-400"
+            onKeyDown={(e)=>{if(e.key==='Enter'){e.preventDefault(); void search();}}}
           />
         </div>
-        <Button type="submit" variant="secondary" className="shrink-0" disabled={searching || !query.trim()}>
+        <Button
+          type="button"
+          variant="secondary"
+          className="shrink-0"
+          disabled={searching || !query.trim()}
+          onClick={() => void search()}
+        >
           {searching ? <LoaderCircle className="animate-spin" size={16} /> : <Search size={16} />}
           Search
         </Button>
-        <Button type="button" variant="secondary" className="shrink-0" onClick={useCurrentLocation} disabled={locating} aria-label="Use current location">
+        <Button
+          type="button"
+          variant="secondary"
+          className="shrink-0"
+          onClick={useCurrentLocation}
+          disabled={locating}
+          aria-label="Use current location"
+        >
           {locating ? <LoaderCircle className="animate-spin" size={16} /> : <Crosshair size={16} />}
           <span className="hidden sm:inline">Current</span>
         </Button>
-      </form>
+      </div>
 
       {results.length > 0 && (
         <div className="max-h-36 overflow-y-auto rounded-lg border border-ink-100 bg-ink-950/30 p-1">
@@ -222,7 +246,7 @@ export function LocationPicker({ latitude, longitude, address, onChange, onClear
           </div>
         )}
         <MapContainer
-          center={position ?? [-13.133897, 27.849332]}
+          center={position ?? ([-13.133897, 27.849332] as LatLngExpression)}
           zoom={position ? 15 : 6}
           scrollWheelZoom
           className="h-full w-full"
