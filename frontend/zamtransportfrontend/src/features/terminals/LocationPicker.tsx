@@ -1,45 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 
 import { divIcon, type LatLngExpression, type Marker as LeafletMarker } from 'leaflet';
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-// Component to draw a route between two points using Leaflet Routing Machine
+import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet';
 function RouteDrawer({ from, to }: { from: LatLngExpression | null; to: LatLngExpression | null }) {
-  const map = useMap();
-  const controlRef = useRef<any>(null);
-
-  useEffect(() => {
-    // Remove previous control if any
-    if (controlRef.current) {
-      map.removeControl(controlRef.current);
-      controlRef.current = null;
-    }
-    // Add routing control when both points are available
-    if (from && to) {
-      const control = (L as any).Routing.control({
-        waypoints: [(L as any).latLng(from), (L as any).latLng(to)],
-        lineOptions: { styles: [{ color: '#ff6600', weight: 4, opacity: 0.7 }] },
-        createMarker: () => null, // suppress default markers
-        routeWhileDragging: false,
-        fitSelectedRoutes: false,
-        show: false,
-      }).addTo(map);
-      controlRef.current = control;
-    }
-  }, [map, from, to]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (controlRef.current) {
-        map.removeControl(controlRef.current);
-        controlRef.current = null;
-      }
-    };
-  }, [map]);
-
-  return null;
+  if (!from || !to) return null
+  return <Polyline positions={[from, to]} pathOptions={{ color: '#ff6600', weight: 4, opacity: 0.7 }} />
 }
 
 
@@ -98,7 +64,7 @@ export function LocationPicker({ latitude, longitude, address, onChange, onClear
   const initialCoordinatesRef = useRef({ latitude, longitude })
   const initialAddressRef = useRef(address);
 // Track previous location to draw route between successive points
-const previousLocationRef = useRef<LatLngExpression | null>(null);
+const [previousPosition, setPreviousPosition] = useState<LatLngExpression | null>(null)
 
   const latitudeNumber = Number(latitude)
   const longitudeNumber = Number(longitude)
@@ -110,11 +76,12 @@ const previousLocationRef = useRef<LatLngExpression | null>(null);
     && Number.isFinite(longitudeNumber)
     && longitudeNumber >= -180
     && longitudeNumber <= 180
-  useEffect(() => {
-  if (hasPosition && position) {
-    previousLocationRef.current = position as LatLngExpression;
-  }
-}, [position, hasPosition]);
+
+  // Derive position from latitude and longitude
+  const position = useMemo(
+    () => hasPosition ? [latitudeNumber, longitudeNumber] as LatLngExpression : null,
+    [hasPosition, latitudeNumber, longitudeNumber],
+  )
 
 
   useEffect(() => {
@@ -152,6 +119,7 @@ const previousLocationRef = useRef<LatLngExpression | null>(null);
     const requestId = ++reverseRequestRef.current
     setGeocoding(true)
     setGeoError('')
+    setPreviousPosition(position)
     onChange(latitudeValue, longitudeValue)
     onAddressChange('')
     try {
@@ -188,6 +156,7 @@ const previousLocationRef = useRef<LatLngExpression | null>(null);
     setResults([])
     setGeoError('')
     setGeocoding(false)
+    setPreviousPosition(position)
     onAddressChange(result.displayName)
     onChange(result.latitude, result.longitude, result.displayName)
   }
@@ -196,6 +165,7 @@ const previousLocationRef = useRef<LatLngExpression | null>(null);
     reverseRequestRef.current += 1
     setGeocoding(false)
     setGeoError('')
+    setPreviousPosition(null)
     onClear()
   }
 
@@ -316,7 +286,7 @@ const previousLocationRef = useRef<LatLngExpression | null>(null);
                 eventHandlers={{ dragend: (event) => dragMarker(event.target as LeafletMarker) }}
               />
               {/* Draw route from previous location to current */}
-              <RouteDrawer from={previousLocationRef.current} to={position} />
+              <RouteDrawer from={previousPosition} to={position} />
             </>
           )}
         </MapContainer>

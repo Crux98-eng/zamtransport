@@ -35,7 +35,7 @@ export function TerminalsPage() {
 
   const save = useMutation({
     mutationFn: (payload: StopPayload) => editing ? terminalsService.update(editing.id, payload) : terminalsService.create(payload),
-    onSuccess: async (_stop) => {
+    onSuccess: async () => {
       setFeedback({ tone: 'success', message: editing ? 'Terminal updated.' : 'Terminal created.' })
       setFormOpen(false)
       setEditing(null)
@@ -70,8 +70,9 @@ export function TerminalsPage() {
     setFormOpen(true)
   }
 
-  function submit(event?: FormEvent) {
-    event?.preventDefault()
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (save.isPending) return
     const name = values.name.trim()
     const latitude = Number(values.latitude)
     const longitude = Number(values.longitude)
@@ -109,8 +110,8 @@ export function TerminalsPage() {
       </Card>}
       {pagination && pagination.totalPages > 1 && <div className="flex justify-end gap-2"><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><span className="grid h-9 place-items-center px-2 text-sm text-ink-500">{page} / {pagination.totalPages}</span><Button variant="secondary" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)}>Next</Button></div>}
 
-      <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title={editing ? 'Edit terminal' : 'Add terminal'} size="2xl" footer={<><Button variant="secondary" onClick={() => setFormOpen(false)}>Cancel</Button><Button onClick={() => submit()} disabled={save.isPending}>{save.isPending ? 'Saving...' : 'Save terminal'}</Button></>}>
-        <form onSubmit={submit} className="space-y-4">
+      <Modal isOpen={formOpen} onClose={() => { if (!save.isPending) setFormOpen(false) }} title={editing ? 'Edit terminal' : 'Add terminal'} size="2xl" footer={<><Button type="button" variant="secondary" onClick={() => setFormOpen(false)} disabled={save.isPending}>Cancel</Button><Button type="submit" form="terminal-form" disabled={save.isPending}>{save.isPending ? 'Saving...' : 'Save terminal'}</Button></>}>
+        <form id="terminal-form" onSubmit={submit} className="space-y-4">
           {error && <Notice tone="error" message={error} />}
           <div><label className="text-sm font-semibold text-ink-700">Name</label><input value={values.name} onChange={(event) => setValues({ ...values, name: event.target.value })} className={inputClass} /></div>
           <div><label className="text-sm font-semibold text-ink-700">Description</label><textarea value={values.description} onChange={(event) => setValues({ ...values, description: event.target.value })} className="mt-1.5 min-h-24 w-full rounded-lg border border-ink-100 bg-ink-50 px-3 py-2 text-sm outline-none focus:border-brand-400" /></div>

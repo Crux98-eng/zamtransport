@@ -7,6 +7,7 @@ export type GeocodingResult = {
 
 const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org'
 const NOMINATIM_MIN_INTERVAL_MS = 1000
+const GEOCODING_TIMEOUT_MS = 15_000
 let requestQueue: Promise<void> = Promise.resolve()
 let lastRequestAt = 0
 
@@ -16,11 +17,18 @@ async function readJson<T>(url: string): Promise<T> {
     if (wait > 0) await new Promise((resolve) => window.setTimeout(resolve, wait))
     lastRequestAt = Date.now()
 
-    const response = await fetch(url, {
-      headers: { Accept: 'application/json' },
-    })
-    if (!response.ok) throw new Error(`Geocoding request failed (${response.status}).`)
-    return response.json() as Promise<T>
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), GEOCODING_TIMEOUT_MS)
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      })
+      if (!response.ok) throw new Error(`Geocoding request failed (${response.status}).`)
+      return await response.json() as T
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
   })
   requestQueue = request.then(() => undefined, () => undefined)
   return request
