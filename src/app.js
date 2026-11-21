@@ -17,7 +17,7 @@ const app = express();
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map((value) => value.trim()).filter(Boolean);
 app.disable('x-powered-by');
 app.use(helmet());
-app.use(cors({ origin(origin, callback) { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error('Origin is not allowed by CORS.')); }, credentials: false }));
+app.use(cors({ origin: true, credentials: false }));
 app.use(express.json({ limit: '100kb' }));
 const authRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { success: false, message: 'Too many authentication attempts. Please try again later.', code: 'AUTH_RATE_LIMITED' } });
 const trackingRateLimit = rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false, message: { success: false, message: 'Too many tracking requests. Please try again shortly.', code: 'TRACKING_RATE_LIMITED' } });
