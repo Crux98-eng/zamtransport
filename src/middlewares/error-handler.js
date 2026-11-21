@@ -1,3 +1,4 @@
+// Convert validation, database, and application errors into JSON API responses.
 const { ZodError } = require('zod');
 const logger = require('../utils/logger');
 

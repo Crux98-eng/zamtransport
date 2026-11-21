@@ -1,3 +1,5 @@
+// Small browser-storage wrapper for the logged-in session and pending
+// registration. Components should use the auth context instead of this file.
 import type { AuthTokens, User } from '@/types/api'
 const sessionKey = 'zambia-transport.session'
 const pendingKey = 'zambia-transport.pending-registration'

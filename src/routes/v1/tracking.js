@@ -1,3 +1,5 @@
+// Vehicle tracking endpoints for public location views, admin history,
+// driver status, simulations, and estimated arrival times.
 const express = require('express');
 const prisma = require('../../lib/prisma');
 const AppError = require('../../errors/app-error');

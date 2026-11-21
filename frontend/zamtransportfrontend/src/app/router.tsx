@@ -1,3 +1,5 @@
+// Route map for the full frontend. Public pages, authenticated pages,
+// and role-restricted pages are all declared here.
 import { createBrowserRouter } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'

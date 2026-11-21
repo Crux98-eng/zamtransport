@@ -1,3 +1,4 @@
+// Validate request JSON against a Zod schema before the route handler runs.
 const AppError = require('../errors/app-error');
 
 module.exports = (schema) => (request, _response, next) => {

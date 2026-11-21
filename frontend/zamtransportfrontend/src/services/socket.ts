@@ -1,3 +1,4 @@
+// Singleton Socket.IO connection used for live dashboard and vehicle updates.
 import { io, type Socket } from 'socket.io-client'
 import { env } from '@/lib/env'
 import { getAccessToken } from '@/stores/auth-store'

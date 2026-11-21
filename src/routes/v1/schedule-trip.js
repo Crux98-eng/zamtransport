@@ -1,3 +1,5 @@
+// Schedule and trip management: recurring schedules, trip creation,
+// status transitions, assignments, and driver-specific trip access.
 const express = require('express');
 const prisma = require('../../lib/prisma');
 const AppError = require('../../errors/app-error');

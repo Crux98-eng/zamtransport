@@ -1,3 +1,5 @@
+// Express application setup. This file wires security, JSON parsing,
+// maintenance checks, API routes, and shared error handling together.
 const cors = require('cors');
 const express = require('express');
 const helmet = require('helmet');

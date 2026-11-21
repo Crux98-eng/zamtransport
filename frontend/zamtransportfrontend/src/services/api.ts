@@ -1,3 +1,5 @@
+// Central HTTP client: adds the access token, refreshes expired tokens once,
+// and turns technical Axios errors into user-friendly API error objects.
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { env } from '@/lib/env'
 import { clearSession, getAccessToken, getSession, setSession } from '@/stores/auth-store'

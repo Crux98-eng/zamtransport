@@ -1,3 +1,5 @@
+// Authentication endpoints: registration, login, token refresh,
+// logout, password changes, and active-session management.
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const jwt = require('jsonwebtoken');

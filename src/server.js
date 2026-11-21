@@ -1,11 +1,13 @@
 require('dotenv').config();
 
+// Load environment variables before importing modules that use configuration.
 const app = require('./app');
 const { attachSocketServer } = require('./services/socket');
 const simulation = require('./services/simulation');
 const prisma = require('./lib/prisma');
 const logger = require('./utils/logger');
 
+// PORT is optional. When it is missing, the API uses port 3000.
 const port = Number.parseInt(process.env.PORT, 10) || 3000;
 const server = app.listen(port, () => {
   logger.info('API server started', { port, environment: process.env.NODE_ENV || 'development' });

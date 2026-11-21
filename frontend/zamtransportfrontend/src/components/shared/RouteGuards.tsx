@@ -1,3 +1,4 @@
+// Route guards protect pages from unauthenticated users and wrong roles.
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthProvider'

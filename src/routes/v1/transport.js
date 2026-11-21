@@ -1,3 +1,5 @@
+// Fleet and transport resources: drivers, vehicles, routes, stops,
+// and vehicle-to-driver assignments. Admin routes use authentication below.
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const prisma = require('../../lib/prisma');

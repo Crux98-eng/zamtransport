@@ -1,3 +1,4 @@
+// Main signed-in layout: sidebar, top bar, mobile navigation, and page content.
 import { useEffect, useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { AppSidebar } from '@/components/layout/AppSidebar'

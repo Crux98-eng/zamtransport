@@ -1,3 +1,5 @@
+// Prisma configuration and database model definitions.
+// Each model below becomes a database table, and each relation links related data.
 generator client {
   provider = "prisma-client-js"
 }

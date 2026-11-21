@@ -1,3 +1,4 @@
+// Shared React Query settings control caching, retries, and background refreshes.
 import { QueryClient } from '@tanstack/react-query'
 
 export const queryClient = new QueryClient({

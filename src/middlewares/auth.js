@@ -1,9 +1,11 @@
+// Authentication and role checks used by protected Express routes.
 const prisma = require('../lib/prisma');
 const AppError = require('../errors/app-error');
 const { verifyAccessToken } = require('../utils/tokens');
 
 async function authenticate(request, _response, next) {
   try {
+    // The access token is sent in the Authorization header as "Bearer <token>".
     const value = request.get('authorization');
     if (!value || !value.startsWith('Bearer ')) throw new AppError(401, 'A bearer access token is required.', 'UNAUTHENTICATED');
     const payload = verifyAccessToken(value.slice(7));

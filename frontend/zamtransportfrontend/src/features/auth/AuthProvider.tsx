@@ -1,3 +1,5 @@
+// Authentication context: tracks the current login phase and exposes
+// login, registration, logout, role, and permission helpers to components.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { apiError } from '@/services/api'

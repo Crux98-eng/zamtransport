@@ -116,3 +116,23 @@ This project is for educational purposes. Feel free to fork, experiment, and sub
 ---
 
 *Happy coding!*
+**🔗 https://zamtransport-seven.vercel.app/**
+
+It talks to the hosted backend (also on Vercel) and includes the full feature set – driver registration, trip assignment, live tracking, and dashboards.
+
+---
+
+## 🧭 Quick Troubleshooting
+- **CORS errors** – Make sure the backend `src/app.js` has `origin: true` (we already set it) and that the frontend `env.ts` points to the correct base URL.
+- **Database connection fails** – Verify that `DATABASE_URL` in `.env` matches your local PostgreSQL credentials and that the DB service is running.
+- **Missing migrations** – Run `npx prisma migrate dev` again; it will create any missing tables.
+- **Socket.IO not receiving updates** – Ensure the backend server is started **before** the frontend and that both are using the same `API_BASE_URL`.
+
+---
+
+## 📜 License & Contributions
+This project is for educational purposes. Feel free to fork, experiment, and submit pull requests. No commercial use is intended.
+
+---
+
+*Happy coding!*
