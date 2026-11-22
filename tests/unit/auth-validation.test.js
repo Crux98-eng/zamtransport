@@ -3,7 +3,7 @@ process.env.REFRESH_TOKEN_SECRET = 'a-very-long-test-refresh-secret-value';
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { registerSchema } = require('../../src/validators/auth');
+const { driverRegisterSchema, registerSchema, resendVerificationSchema, verifyEmailSchema } = require('../../src/validators/auth');
 const { signAccessToken, verifyAccessToken, createRefreshToken, verifyRefreshToken, hashToken } = require('../../src/utils/tokens');
 
 const validRegistration = { fullName: 'Jane Commuter', email: 'JANE@example.com', password: 'Correct-Horse-7!', confirmPassword: 'Correct-Horse-7!' };
@@ -21,6 +21,26 @@ test('registration rejects privileged role and active-status mass assignment', (
 test('registration rejects weak or mismatched passwords', () => {
   assert.throws(() => registerSchema.parse({ ...validRegistration, password: 'short', confirmPassword: 'short' }));
   assert.throws(() => registerSchema.parse({ ...validRegistration, confirmPassword: 'Different-Password-7!' }));
+});
+
+test('driver registration validates licence details and rejects role/status assignment', () => {
+  const valid = {
+    fullName: 'John Driver',
+    email: 'DRIVER@example.com',
+    password: 'Correct-Horse-7!',
+    confirmPassword: 'Correct-Horse-7!',
+    licenceNumber: 'ZL-12345',
+    licenceExpiry: '2035-01-01',
+  };
+  assert.equal(driverRegisterSchema.parse(valid).email, 'driver@example.com');
+  assert.throws(() => driverRegisterSchema.parse({ ...valid, role: 'ADMIN' }));
+  assert.throws(() => driverRegisterSchema.parse({ ...valid, licenceExpiry: '2000-01-01' }));
+});
+
+test('verification and resend inputs enforce token shape and normalized email', () => {
+  assert.equal(verifyEmailSchema.safeParse({ token: 'A'.repeat(43) }).success, true);
+  assert.equal(verifyEmailSchema.safeParse({ token: 'short' }).success, false);
+  assert.equal(resendVerificationSchema.parse({ email: 'USER@example.com' }).email, 'user@example.com');
 });
 
 test('access and refresh tokens carry minimal identity claims', () => {

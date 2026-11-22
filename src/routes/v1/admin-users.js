@@ -7,6 +7,7 @@ const asyncHandler = require('../../utils/async-handler');
 const { audit } = require('../../utils/audit');
 const { publicUser } = require('../../utils/users');
 const notifications = require('../../services/notifications');
+const email = require('../../services/email');
 const { profileSchema, rejectSchema, roleSchema, statusSchema } = require('../../validators/auth');
 
 const router = express.Router();
@@ -29,7 +30,7 @@ async function targetOr404(db, userId) { const user = await db.user.findUnique({
 async function activeAdminCount(db) { return db.user.count({ where: { role: 'ADMIN', status: 'ACTIVE' } }); }
 
 router.get('/pending', asyncHandler(async (request, response) => {
-  const { page, limit, search, dateFrom, dateTo } = query(request); const where = userWhere(search, 'PENDING', dateFrom, dateTo);
+  const { page, limit, search, dateFrom, dateTo } = query(request); const where = { ...userWhere(search, 'PENDING', dateFrom, dateTo), emailVerifiedAt: { not: null } };
   const [users, total] = await Promise.all([prisma.user.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }), prisma.user.count({ where })]);
   response.json({ success: true, data: { users: users.map(publicUser), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
 }));
@@ -37,18 +38,34 @@ router.get('/pending', asyncHandler(async (request, response) => {
 router.patch('/:userId/approve', asyncHandler(async (request, response) => {
   const userId = id(request.params.userId); const user = await prisma.$transaction(async (db) => {
     const target = await targetOr404(db, userId); if (target.status !== 'PENDING') throw new AppError(409, 'Only pending accounts can be approved.', 'INVALID_STATUS_TRANSITION');
+    if (!target.emailVerifiedAt) throw new AppError(409, 'The applicant must verify their email before approval.', 'EMAIL_VERIFICATION_REQUIRED');
     const updated = await db.user.update({ where: { id: userId }, data: { status: 'ACTIVE', approvedAt: new Date(), approvedById: request.user.id } });
     await audit(db, { actorId: request.user.id, targetUserId: userId, action: 'ACCOUNT_APPROVED', ipAddress: ip(request) }); return updated;
-  }); await notifications.create({ userId, title: 'Account approved', message: 'Your account has been approved and is now active.', type: 'USER_APPROVAL', dedupeKey: `user:${userId}:approved` }); response.json({ success: true, message: 'Account approved.', data: { user: publicUser(user) } });
+  });
+  const delivery = user.role === 'DRIVER' ? await email.sendDriverApprovalEmail(user) : null;
+  await notifications.create({ userId, title: 'Account approved', message: 'Your account has been approved and is now active.', type: 'USER_APPROVAL', dedupeKey: `user:${userId}:approved`, email: false });
+  response.json({
+    success: true,
+    message: delivery && !delivery.accepted ? 'Account approved, but the email provider did not accept the approval email.' : 'Account approved.',
+    data: { user: publicUser(user), emailAccepted: delivery?.accepted ?? null },
+  });
 }));
 
 
 router.patch('/:userId/reject', validate(rejectSchema), asyncHandler(async (request, response) => {
   const userId = id(request.params.userId); const user = await prisma.$transaction(async (db) => {
     const target = await targetOr404(db, userId); if (target.status !== 'PENDING') throw new AppError(409, 'Only pending accounts can be rejected.', 'INVALID_STATUS_TRANSITION');
+    if (!target.emailVerifiedAt) throw new AppError(409, 'The applicant must verify their email before rejection.', 'EMAIL_VERIFICATION_REQUIRED');
     const updated = await db.user.update({ where: { id: userId }, data: { status: 'REJECTED', rejectedAt: new Date(), rejectedById: request.user.id, rejectionReason: request.body.reason || null } });
     await audit(db, { actorId: request.user.id, targetUserId: userId, action: 'ACCOUNT_REJECTED', metadata: request.body.reason ? { reason: request.body.reason } : undefined, ipAddress: ip(request) }); return updated;
-  }); await notifications.create({ userId, title: 'Account rejected', message: 'Your account registration was not approved.', type: 'USER_REJECTION', dedupeKey: `user:${userId}:rejected` }); response.json({ success: true, message: 'Account rejected.', data: { user: publicUser(user) } });
+  });
+  const delivery = user.role === 'DRIVER' ? await email.sendDriverRejectionEmail(user, user.rejectionReason) : null;
+  await notifications.create({ userId, title: 'Account rejected', message: 'Your account registration was not approved.', type: 'USER_REJECTION', dedupeKey: `user:${userId}:rejected`, email: false });
+  response.json({
+    success: true,
+    message: delivery && !delivery.accepted ? 'Account rejected, but the email provider did not accept the rejection email.' : 'Account rejected.',
+    data: { user: publicUser(user), emailAccepted: delivery?.accepted ?? null },
+  });
 }));
 
 async function changeStatus(request, userId, status) { return prisma.$transaction(async (db) => {

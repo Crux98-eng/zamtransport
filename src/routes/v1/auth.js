@@ -2,7 +2,7 @@
 // logout, password changes, and active-session management.
 const bcrypt = require('bcryptjs');
 const express = require('express');
-const jwt = require('jsonwebtoken');
+const { rateLimit } = require('express-rate-limit');
 const prisma = require('../../lib/prisma');
 const AppError = require('../../errors/app-error');
 const { authenticate, accountMessage } = require('../../middlewares/auth');
@@ -12,10 +12,27 @@ const { audit } = require('../../utils/audit');
 const { createRefreshToken, hashToken, signAccessToken, verifyRefreshToken } = require('../../utils/tokens');
 const { publicUser } = require('../../utils/users');
 const notifications = require('../../services/notifications');
-const { loginSchema, passwordChangeSchema, refreshSchema, registerSchema } = require('../../validators/auth');
+const emailService = require('../../services/email');
+const emailVerification = require('../../services/email-verification');
+const {
+  driverRegisterSchema,
+  loginSchema,
+  passwordChangeSchema,
+  refreshSchema,
+  registerSchema,
+  resendVerificationSchema,
+  verifyEmailSchema,
+} = require('../../validators/auth');
 
 const router = express.Router();
 const clientIp = (request) => request.ip;
+const resendVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many verification requests. Please try again later.', code: 'VERIFICATION_RATE_LIMITED' },
+});
 
 async function issueSession(db, user, request) {
   const refresh = createRefreshToken(user);
@@ -25,18 +42,98 @@ async function issueSession(db, user, request) {
 
 router.post('/register', validate(registerSchema), asyncHandler(async (request, response) => {
   const { fullName, email, phoneNumber, password } = request.body;
-  
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new AppError(409, 'An account already exists for this email address.', 'EMAIL_IN_USE');
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await prisma.$transaction(async (db) => {
-    const created = await db.user.create({ data: { fullName, email, phoneNumber: phoneNumber || null, passwordHash, role: 'COMMUTER', status: 'PENDING' } });
+  const { user, token } = await prisma.$transaction(async (db) => {
+    const created = await db.user.create({ data: { fullName, email, phoneNumber: phoneNumber || null, passwordHash, role: 'COMMUTER', status: 'PENDING', emailVerifiedAt: null } });
+    const token = await emailVerification.issueToken(db, created.id);
     await audit(db, { targetUserId: created.id, action: 'USER_REGISTERED', ipAddress: clientIp(request) });
-    return created;
+    return { user: created, token };
   });
-  const admins = await prisma.user.findMany({ where: { role: 'ADMIN', status: 'ACTIVE' }, select: { id: true } });
-  await Promise.all(admins.map((admin) => notifications.create({ userId: admin.id, title: 'New user registration', message: `${user.fullName} is awaiting approval.`, type: 'GENERAL', dedupeKey: `user:${user.id}:registration:admin:${admin.id}` })));
-  response.status(201).json({ success: true, message: 'Registration successful. Your account is awaiting administrator approval.', data: { user: publicUser(user) } });
+  const delivery = await emailService.sendVerificationEmail(user, user.role, token);
+  response.status(201).json({
+    success: true,
+    message: delivery.accepted
+      ? 'Registration received. Check your email to verify your account. If it does not arrive, you can request another link.'
+      : 'Registration received, but the email provider did not accept the verification message. Request another email from the verification page.',
+    data: { user: publicUser(user), verificationEmailAccepted: delivery.accepted },
+  });
+}));
+
+router.post('/register/driver', validate(driverRegisterSchema), asyncHandler(async (request, response) => {
+  const { fullName, email: address, phoneNumber, password, licenceNumber, licenceExpiry, address: homeAddress } = request.body;
+  const existing = await prisma.user.findUnique({ where: { email: address } });
+  if (existing) throw new AppError(409, 'An account already exists for this email address.', 'EMAIL_IN_USE');
+  const passwordHash = await bcrypt.hash(password, 12);
+  const { user, token } = await prisma.$transaction(async (db) => {
+    const created = await db.user.create({
+      data: { fullName, email: address, phoneNumber: phoneNumber || null, passwordHash, role: 'DRIVER', status: 'PENDING', emailVerifiedAt: null },
+    });
+    await db.driverProfile.create({
+      data: { userId: created.id, licenceNumber, licenceExpiry, address: homeAddress || null },
+    });
+    const token = await emailVerification.issueToken(db, created.id);
+    await audit(db, { targetUserId: created.id, action: 'DRIVER_REGISTERED', ipAddress: clientIp(request) });
+    return { user: created, token };
+  });
+  const delivery = await emailService.sendVerificationEmail(user, user.role, token);
+  response.status(201).json({
+    success: true,
+    message: delivery.accepted
+      ? 'Driver application received. Verify your email before administrator review. If the email does not arrive, you can request another link.'
+      : 'Driver application received, but the email provider did not accept the verification message. Request another email from the verification page.',
+    data: { user: publicUser(user), verificationEmailAccepted: delivery.accepted },
+  });
+}));
+
+router.post('/verify-email', validate(verifyEmailSchema), asyncHandler(async (request, response) => {
+  const result = await emailVerification.verifyToken(request.body.token);
+  if (result.role === 'DRIVER') {
+    const admins = await prisma.user.findMany({ where: { role: 'ADMIN', status: 'ACTIVE' }, select: { id: true } });
+    await Promise.all(admins.map((admin) => notifications.create({
+      userId: admin.id,
+      title: 'Verified driver application',
+      message: `${result.fullName} verified their email and is awaiting driver approval.`,
+      type: 'GENERAL',
+      dedupeKey: `user:${result.userId}:driver:verified:admin:${admin.id}`,
+    })));
+  }
+  response.json({
+    success: true,
+    message: result.role === 'DRIVER'
+      ? 'Email verified. Your driver application is now awaiting administrator approval.'
+      : 'Email verified. Your commuter account is active and ready to use.',
+    data: result,
+  });
+}));
+
+router.post('/resend-verification', resendVerificationLimiter, validate(resendVerificationSchema), asyncHandler(async (request, response) => {
+  const genericMessage = 'If an account needs email verification, a verification message will be sent shortly.';
+  const user = await prisma.user.findUnique({ where: { email: request.body.email } });
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - emailVerification.RESEND_COOLDOWN_MS);
+  if (!user || !['COMMUTER', 'DRIVER'].includes(user.role) || user.status !== 'PENDING' || user.emailVerifiedAt) {
+    return response.json({ success: true, message: genericMessage });
+  }
+
+  const result = await prisma.$transaction(async (db) => {
+    const claimed = await db.user.updateMany({
+      where: {
+        id: user.id,
+        status: 'PENDING',
+        emailVerifiedAt: null,
+        OR: [{ verificationEmailSentAt: null }, { verificationEmailSentAt: { lte: cutoff } }],
+      },
+      data: { verificationEmailSentAt: now },
+    });
+    if (claimed.count !== 1) return null;
+    const token = await emailVerification.issueToken(db, user.id, now);
+    return { token };
+  });
+
+  if (result) await emailService.sendVerificationEmail(user, user.role, result.token);
+  response.json({ success: true, message: genericMessage });
 }));
 
 router.post('/login', validate(loginSchema), asyncHandler(async (request, response) => {
@@ -47,6 +144,10 @@ router.post('/login', validate(loginSchema), asyncHandler(async (request, respon
   if (!valid) {
     if (user) await audit(prisma, { targetUserId: user.id, action: 'LOGIN_FAILED', ipAddress: clientIp(request), userAgent: request.get('user-agent'), success: false, resourceType: 'User', resourceId: user.id });
     throw new AppError(401, 'Invalid email or password.', 'INVALID_CREDENTIALS');
+  }
+  if (!user.emailVerifiedAt) throw new AppError(403, 'Verify your email address before signing in.', 'EMAIL_NOT_VERIFIED');
+  if (user.status === 'REJECTED' && user.role === 'DRIVER' && user.rejectionReason) {
+    throw new AppError(403, `Your driver application was rejected. Reason: ${user.rejectionReason}`, 'ACCOUNT_REJECTED');
   }
   if (user.status !== 'ACTIVE') throw new AppError(403, accountMessage(user.status), `ACCOUNT_${user.status}`);
   const tokens = await prisma.$transaction(async (db) => {

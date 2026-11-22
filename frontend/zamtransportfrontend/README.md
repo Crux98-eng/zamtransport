@@ -33,7 +33,7 @@ npm.cmd run preview
 
 ## Flow and route protection
 
-Registration sends `fullName`, `email`, optional `phoneNumber`, `password`, and `confirmPassword` to `POST /auth/register`. The backend creates a `PENDING` `COMMUTER`; no token is issued and the UI sends the person to the approval page. Only an active account can receive tokens through `POST /auth/login`.
+Commuter registration sends `fullName`, `email`, optional `phoneNumber`, `password`, and `confirmPassword` to `POST /auth/register`. Commuters verify their email before the account becomes active. Driver applications use `POST /auth/register/driver`, collect licence details, and remain pending for administrator approval after email verification. The UI provides verification and resend screens; only email-verified active accounts can receive tokens through `POST /auth/login`.
 
 `GuestGuard` keeps signed-in users away from login and registration. `ProtectedRoute` requires an initialized, valid session, while `ApprovalGuard` blocks pending and non-active accounts. `RoleGuard` is used for the current administrator-only operational pages. `PermissionGuard` is available but no permissions field is currently returned by the backend, so it is deliberately not applied speculatively. Navigation follows the same role restrictions.
 

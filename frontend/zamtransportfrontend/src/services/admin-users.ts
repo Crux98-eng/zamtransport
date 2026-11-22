@@ -10,6 +10,7 @@ export type PendingUsersPage = {
     totalPages: number
   }
 }
+export type AccountDecisionResponse = ApiEnvelope<{ user: User; emailAccepted: boolean | null }>
 
 export const adminUsersService = {
   async listPending(params: { page: number; limit: number; search?: string }) {
@@ -18,12 +19,12 @@ export const adminUsersService = {
   },
 
   async approve(userId: number) {
-    const response = await api.patch<ApiEnvelope<{ user: User }>>(`/admin/users/${userId}/approve`)
+    const response = await api.patch<AccountDecisionResponse>(`/admin/users/${userId}/approve`)
     return response.data
   },
 
   async reject(userId: number, reason?: string) {
-    const response = await api.patch<ApiEnvelope<{ user: User }>>(
+    const response = await api.patch<AccountDecisionResponse>(
       `/admin/users/${userId}/reject`,
       reason ? { reason } : {},
     )

@@ -6,13 +6,14 @@ import { apiError } from '@/services/api'
 import { authService } from '@/services/auth'
 import { disconnectSocket } from '@/services/socket'
 import { clearPendingAccount, clearSession, getPendingAccount, getSession, setPendingAccount, setSession, updateSessionUser, type PendingAccount } from '@/stores/auth-store'
-import type { LoginPayload, RegisterPayload, User } from '@/types/api'
+import type { DriverRegisterPayload, LoginPayload, RegisterPayload, User } from '@/types/api'
 
 type AuthPhase = 'initializing' | 'authenticated' | 'unauthenticated' | 'pending-approval' | 'session-expired' | 'account-blocked'
 type AuthState = { phase: AuthPhase; user: User | null; message?: string }
 type AuthContextValue = AuthState & {
   login: (payload: LoginPayload) => Promise<void>
   register: (payload: RegisterPayload) => Promise<PendingAccount>
+  registerDriver: (payload: DriverRegisterPayload) => Promise<PendingAccount>
   clearPendingRegistration: () => void
   logout: () => Promise<void>
   hasRole: (roles: User['role'][]) => boolean
@@ -70,7 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [client])
   const register = useCallback(async (payload: RegisterPayload) => {
     const { data } = await authService.register(payload)
-    const pending: PendingAccount = { fullName: data.user.fullName, email: data.user.email, status: data.user.status }
+    const pending: PendingAccount = { fullName: data.user.fullName, email: data.user.email, status: data.user.status, role: data.user.role, verificationEmailAccepted: data.verificationEmailAccepted }
+    setPendingAccount(pending)
+    setState({ phase: 'pending-approval', user: null })
+    return pending
+  }, [])
+  const registerDriver = useCallback(async (payload: DriverRegisterPayload) => {
+    const { data } = await authService.registerDriver(payload)
+    const pending: PendingAccount = { fullName: data.user.fullName, email: data.user.email, status: data.user.status, role: data.user.role, verificationEmailAccepted: data.verificationEmailAccepted }
     setPendingAccount(pending)
     setState({ phase: 'pending-approval', user: null })
     return pending
@@ -83,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const session = getSession()
     try { if (session) await authService.logout(session.refreshToken) } finally { clearLocalState('unauthenticated') }
   }, [clearLocalState])
-  const value = useMemo<AuthContextValue>(() => ({ ...state, login, register, clearPendingRegistration, logout, hasRole: (roles) => state.user !== null && roles.includes(state.user.role), hasPermission: (permission) => state.user?.permissions?.includes(permission) ?? false }), [state, login, register, clearPendingRegistration, logout])
+  const value = useMemo<AuthContextValue>(() => ({ ...state, login, register, registerDriver, clearPendingRegistration, logout, hasRole: (roles) => state.user !== null && roles.includes(state.user.role), hasPermission: (permission) => state.user?.permissions?.includes(permission) ?? false }), [state, login, register, registerDriver, clearPendingRegistration, logout])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

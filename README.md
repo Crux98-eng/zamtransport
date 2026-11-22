@@ -39,7 +39,9 @@ A live version is deployed on Vercel: **https://zamtransport-seven.vercel.app/**
    ```
    The most important variables are:
    - `DATABASE_URL` – connection string for PostgreSQL (e.g. `postgresql://postgres:secret@localhost:5432/zam_transport`)
-   - `CLIENT_URL` – URL of the frontend; for local development use `http://localhost:5173`
+   - `CLIENT_URL` – allowed frontend origin for API requests; locally use `http://localhost:5173`
+   - `FRONTEND_URL` – frontend origin used to create email verification links
+   - `RESEND_API_KEY` and `EMAIL_FROM` – backend-only Resend configuration; never expose the API key in Vite variables
    - `PORT` – port the backend will listen on (default `5000`).
 3. **Install backend dependencies**:
    ```bash

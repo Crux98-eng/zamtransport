@@ -90,7 +90,10 @@ mean an active bearer token with that exact role is required.
 | GET | / | Public | Service metadata |
 | GET | /health | Public | Health probe (`status`, `service`, `timestamp`) |
 | GET | /api/v1 | Public | API metadata |
-| POST | /api/v1/auth/register | Public | Register a pending commuter account |
+| POST | /api/v1/auth/register | Public | Register an unverified commuter account |
+| POST | /api/v1/auth/register/driver | Public | Register an unverified driver application |
+| POST | /api/v1/auth/verify-email | Public | Consume a one-time email verification token |
+| POST | /api/v1/auth/resend-verification | Public | Request a verification email with generic response |
 | POST | /api/v1/auth/login | Public | Login and receive access/refresh tokens |
 | POST | /api/v1/auth/refresh | Public | Rotate refresh token and receive new tokens |
 | POST | /api/v1/auth/logout | Public | Revoke one refresh token |
@@ -249,6 +252,13 @@ type RegisterBody = {
   password: StrongPassword;
   confirmPassword: string;
 };
+type DriverRegisterBody = RegisterBody & {
+  licenceNumber: string;
+  licenceExpiry: string;
+  address?: string;
+};
+type VerifyEmailBody = { token: string };
+type ResendVerificationBody = { email: string };
 type LoginBody = { email: string; password: string };
 type RefreshBody = { refreshToken: string };
 type ChangePasswordBody = {
@@ -259,11 +269,16 @@ type ChangePasswordBody = {
 type StrongPassword = string;       // 12–128 chars; lowercase, uppercase, number, symbol
 ```
 
+Commuters become `ACTIVE` after email verification. Drivers stay `PENDING`
+after verification and require a separate administrator decision. Verification
+tokens expire after 30 minutes and can be used once. `POST /auth/resend-verification`
+always returns a generic response and has request throttling.
+
 `POST /auth/login` returns `data.user`, `data.accessToken`, and
 `data.refreshToken`. Store tokens according to the frontend's security model;
 send only the access token in the bearer header. `POST /auth/refresh` rotates
-the refresh token—replace both saved tokens atomically. Registration always
-creates `role: COMMUTER`, `status: PENDING` regardless of client input.
+the refresh token—replace both saved tokens atomically. Registration endpoints
+assign their role on the server and reject role/status mass assignment.
 
 Admin user bodies:
 

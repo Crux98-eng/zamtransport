@@ -16,9 +16,12 @@ Socket clients are authenticated with the existing JWT flow and automatically
 join only `notifications:user:<their-id>`. Listen for `notification:new`,
 `notification:read`, and `notification:unread-count`.
 
-SMTP email is optional. Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`,
-`SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`; users must opt in with
-`emailEnabled`. Delivery failures are logged and never roll back transport work.
+Resend is preferred for transactional email. Set backend-only `RESEND_API_KEY`,
+`EMAIL_FROM`, and `FRONTEND_URL`; verify the sender domain in Resend. The existing
+`SMTP_*` settings remain a fallback for notification email. Users must opt in to
+optional notification mail with `emailEnabled`; mandatory verification and driver
+decision emails do not depend on that preference. Provider acceptance and failures
+are logged without token values. Acceptance is not proof of inbox delivery.
 
 ## Administration
 
@@ -34,7 +37,7 @@ Settings are allow-listed, validated, persisted in `system_settings`, and
 audited. Maintenance mode returns `503` for public API endpoints while leaving
 health, auth, and admin recovery paths available. `GET /health` and
 `GET /api/v1/health` are deliberately minimal; the administrator health route
-includes database timing, Socket.IO attachment, SMTP configuration state, and
+includes database timing, Socket.IO attachment, email configuration state, and
 simulation count.
 
 Sessions use hashed refresh tokens. Users can list sessions with
@@ -51,16 +54,22 @@ instance and validated rooms.
 
 GPS simulation, email delivery, and report generation remain in-process. They
 are safe to stop/reconcile on restart but are not a durable distributed job
-queue; use external workers/queues before horizontally scaling. SMTP delivery
-has no retry queue. Run `npm audit` during dependency maintenance; its output
+queue; use external workers/queues before horizontally scaling. Email sending has
+no durable retry queue or bounce webhook integration. Run `npm audit` during dependency maintenance; its output
 depends on the installed dependency tree.
 
 ## Deployment and recovery
 
 Use Node 24+ with HTTPS terminated by the hosting platform or reverse proxy.
-Set every value in `.env.example`, use strong unique JWT secrets, set a precise
-`CLIENT_URL`, run `npm ci`, `npm run db:deploy`, then `npm start`. Configure a
-writable `LOG_FILE` for persistent structured logs. Never commit `.env`.
+For Render, set the backend `DATABASE_URL`, token secrets, `CLIENT_URL` to the
+Vercel origin, `FRONTEND_URL` to the Vercel origin, `RESEND_API_KEY`, and
+`EMAIL_FROM`; verify the sender domain in Resend, then deploy with
+`npm ci`, `npm run db:deploy`, and `npm start`. For Vercel, set only
+`VITE_API_BASE_URL` and `VITE_SOCKET_URL` for the Render API; never add
+`RESEND_API_KEY` to frontend/build variables. Redeploy the frontend after
+changing Vite environment variables because they are embedded at build time.
+Configure a writable `LOG_FILE` for persistent structured logs. Never commit
+`.env`.
 
 This deployment uses PostgreSQL (the configured Prisma provider), not MySQL.
 Before a migration, take a tested PostgreSQL backup, for example:

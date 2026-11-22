@@ -43,8 +43,13 @@ export function ApprovalsPage() {
         ? adminUsersService.approve(userId)
         : adminUsersService.reject(userId, rejectionReason.trim() || undefined)
     ),
-    onSuccess: async (_result, variables) => {
-      setFeedback({ tone: 'success', message: variables.action === 'approve' ? 'Account approved.' : 'Account rejected.' })
+    onSuccess: async (result, variables) => {
+      const deliveryFailed = result.data.emailAccepted === false
+      const actionMessage = variables.action === 'approve' ? 'Account approved.' : 'Account rejected.'
+      setFeedback({
+        tone: deliveryFailed ? 'error' : 'success',
+        message: deliveryFailed ? `${actionMessage} The email provider did not accept the notification; check the email service configuration.` : actionMessage,
+      })
       setDecision(null)
       setReason('')
       setReasonError('')

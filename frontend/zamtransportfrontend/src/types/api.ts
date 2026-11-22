@@ -8,4 +8,7 @@ export type User = { id: number; fullName: string; email: string; phoneNumber: s
 export type AuthTokens = { accessToken: string; refreshToken: string }
 export type LoginResponse = AuthTokens & { user: User }
 export type RegisterPayload = { fullName: string; email: string; phoneNumber?: string; password: string; confirmPassword: string }
+export type DriverRegisterPayload = RegisterPayload & { licenceNumber: string; licenceExpiry: string; address?: string }
+export type RegistrationResponse = { user: User; verificationEmailAccepted: boolean }
+export type EmailVerificationResponse = { role: 'COMMUTER' | 'DRIVER'; status: UserStatus; email: string; fullName: string }
 export type LoginPayload = { email: string; password: string }

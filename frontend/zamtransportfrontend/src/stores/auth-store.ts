@@ -4,7 +4,7 @@ import type { AuthTokens, User } from '@/types/api'
 const sessionKey = 'zambia-transport.session'
 const pendingKey = 'zambia-transport.pending-registration'
 export type StoredSession = AuthTokens & { user: User }
-export type PendingAccount = Pick<User, 'fullName' | 'email' | 'status'>
+export type PendingAccount = Pick<User, 'fullName' | 'email' | 'status' | 'role'> & { verificationEmailAccepted?: boolean; emailVerified?: boolean }
 function read<T>(key: string): T | null { try { return JSON.parse(localStorage.getItem(key) ?? 'null') as T | null } catch { return null } }
 export function getSession() { return read<StoredSession>(sessionKey) }
 export function setSession(session: StoredSession) { localStorage.setItem(sessionKey, JSON.stringify(session)) }
