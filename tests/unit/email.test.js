@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { driverApprovedEmail, driverRejectedEmail, sendEmail, sendVerificationEmail, verificationEmail } = require('../../src/services/email');
+const { driverApprovedEmail, driverRejectedEmail, passwordResetEmail, sendEmail, sendVerificationEmail, verificationEmail } = require('../../src/services/email');
 const logger = require('../../src/utils/logger');
 
 test('verification email is branded, responsive, time-limited, and escapes names', () => {
@@ -23,6 +23,17 @@ test('driver decision templates include approval login and escaped rejection rea
   assert.match(approved.text, /https:\/\/transport\.example\/login/);
   assert.doesNotMatch(rejected.html, /<img src=x/);
   assert.match(rejected.text, /<img src=x/);
+});
+
+test('password reset email is branded, warns about expiry, and escapes account names', () => {
+  const message = passwordResetEmail(
+    { fullName: '<script>alert(1)</script>' },
+    'https://transport.example/reset-password?token=abc',
+  );
+  assert.match(message.html, /ZAMBIA TRANSPORT/);
+  assert.match(message.html, /expires in 30 minutes/);
+  assert.doesNotMatch(message.html, /<script>alert/);
+  assert.match(message.text, /https:\/\/transport\.example\/reset-password\?token=abc/);
 });
 
 test('email sender reports missing provider configuration as not accepted', async (context) => {

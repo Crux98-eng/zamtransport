@@ -9,7 +9,7 @@ async function main() {
     if (process.env.RESET_ADMIN_PASSWORD !== 'true') return console.log('Administrator bootstrap already completed; no account was changed.');
     if (!process.env.ADMIN_PASSWORD) throw new Error('ADMIN_PASSWORD is required when RESET_ADMIN_PASSWORD=true.');
     const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
-    await prisma.$transaction(async (db) => { await db.user.update({ where: { id: existingAdmin.id }, data: { passwordHash } }); await db.refreshToken.updateMany({ where: { userId: existingAdmin.id, revokedAt: null }, data: { revokedAt: new Date(), revokedReason: 'ADMIN_PASSWORD_RESET' } }); await db.auditLog.create({ data: { actorId: existingAdmin.id, targetUserId: existingAdmin.id, action: 'ADMIN_PASSWORD_RESET' } }); }, { maxWait: 10000, timeout: 30000 });
+    await prisma.$transaction(async (db) => { await db.user.update({ where: { id: existingAdmin.id }, data: { passwordHash, passwordResetRequestedAt: null } }); await db.passwordResetToken.deleteMany({ where: { userId: existingAdmin.id } }); await db.refreshToken.updateMany({ where: { userId: existingAdmin.id, revokedAt: null }, data: { revokedAt: new Date(), revokedReason: 'ADMIN_PASSWORD_RESET' } }); await db.auditLog.create({ data: { actorId: existingAdmin.id, targetUserId: existingAdmin.id, action: 'ADMIN_PASSWORD_RESET' } }); }, { maxWait: 10000, timeout: 30000 });
     return console.log('Administrator password reset explicitly.');
   }
   const { ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;

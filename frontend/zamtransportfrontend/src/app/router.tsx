@@ -25,12 +25,16 @@ import { DriverTripsPage } from '@/features/trips/DriverTripsPage'
 import { ReportsPage } from '@/features/reports/ReportsPage'
 import { CommuterTripsPage } from '@/features/trips/CommuterTripsPage'
 import { VerifyEmailPage } from '@/features/auth/VerifyEmailPage'
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
   { path: '/login', element: <GuestGuard><LoginPage /></GuestGuard> },
   { path: '/register', element: <GuestGuard><RegisterPage /></GuestGuard> },
   { path: '/verify-email', element: <VerifyEmailPage /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+  { path: '/reset-password', element: <ResetPasswordPage /> },
   { path: '/pending-approval', element: <PendingApprovalPage /> },
   { path: '/unauthorized', element: <UnauthorizedPage /> },
   { element: <ProtectedRoute><ApprovalGuard><AppShell /></ApprovalGuard></ProtectedRoute>, children: [

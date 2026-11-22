@@ -102,6 +102,7 @@ model User {
   status                 UserStatus              @default(PENDING)
   emailVerifiedAt        DateTime?               @default(now())
   verificationEmailSentAt DateTime?
+  passwordResetRequestedAt DateTime?
   approvedAt             DateTime?
   approvedById           Int?
   rejectedAt             DateTime?
@@ -130,6 +131,7 @@ model User {
   auditTargets           AuditLog[]              @relation("AuditTarget")
   generatedReports       Report[]                @relation("ReportGenerator")
   emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
 
   @@index([role])
   @@index([status])
@@ -146,6 +148,18 @@ model EmailVerificationToken {
 
   @@index([userId, expiresAt])
   @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique @db.VarChar(64)
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
 }
 
 model Report {

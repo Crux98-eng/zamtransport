@@ -94,6 +94,8 @@ mean an active bearer token with that exact role is required.
 | POST | /api/v1/auth/register/driver | Public | Register an unverified driver application |
 | POST | /api/v1/auth/verify-email | Public | Consume a one-time email verification token |
 | POST | /api/v1/auth/resend-verification | Public | Request a verification email with generic response |
+| POST | /api/v1/auth/forgot-password | Public | Request a password reset email with generic response |
+| POST | /api/v1/auth/reset-password | Public | Consume a one-time reset token and change the password |
 | POST | /api/v1/auth/login | Public | Login and receive access/refresh tokens |
 | POST | /api/v1/auth/refresh | Public | Rotate refresh token and receive new tokens |
 | POST | /api/v1/auth/logout | Public | Revoke one refresh token |

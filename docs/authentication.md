@@ -10,6 +10,8 @@ Endpoints:
 - `POST /api/v1/auth/register/driver` — creates an unverified, pending `DRIVER` application and driver profile.
 - `POST /api/v1/auth/verify-email` — consumes a single-use token; verified commuters become `ACTIVE`, verified drivers remain `PENDING`.
 - `POST /api/v1/auth/resend-verification` — requests another link; returns a generic response and is rate limited.
+- `POST /api/v1/auth/forgot-password` — requests a time-limited password reset link with a generic response.
+- `POST /api/v1/auth/reset-password` — consumes a reset token, changes the password, and revokes refresh sessions.
 - `POST /api/v1/auth/login` — authenticates only verified `ACTIVE` users.
 - `POST /api/v1/auth/refresh` — rotates a refresh token.
 - `POST /api/v1/auth/logout` — revokes one refresh session.
@@ -35,6 +37,13 @@ commits. The API reports whether the provider accepted the message, not inbox de
 Verification tokens use 32 cryptographically random bytes; only SHA-256 hashes are
 stored. Links expire after 30 minutes, previous links are invalidated on resend,
 and resend requests have both per-IP rate limits and a per-account cooldown.
+
+Password reset tokens are separate from email verification tokens. They use 32
+cryptographically random bytes, are stored only as SHA-256 hashes, expire after
+30 minutes, and are single-use. Forgot-password requests return the same response
+whether or not an account exists, are limited per IP, and are throttled per account.
+Successful resets revoke all active refresh sessions. Apply the
+`20261122224000_password_reset` migration before deploying the new backend.
 
 Set `RESEND_API_KEY`, `EMAIL_FROM`, and `FRONTEND_URL` on the backend. `FRONTEND_URL`
 is the public frontend origin used in email links; `APP_URL` is an accepted fallback,

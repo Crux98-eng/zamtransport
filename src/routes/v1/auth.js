@@ -10,17 +10,21 @@ const validate = require('../../middlewares/validate');
 const asyncHandler = require('../../utils/async-handler');
 const { audit } = require('../../utils/audit');
 const { createRefreshToken, hashToken, signAccessToken, verifyRefreshToken } = require('../../utils/tokens');
+const logger = require('../../utils/logger');
 const { publicUser } = require('../../utils/users');
 const notifications = require('../../services/notifications');
 const emailService = require('../../services/email');
 const emailVerification = require('../../services/email-verification');
+const passwordReset = require('../../services/password-reset');
 const {
   driverRegisterSchema,
+  forgotPasswordSchema,
   loginSchema,
   passwordChangeSchema,
   refreshSchema,
   registerSchema,
   resendVerificationSchema,
+  resetPasswordSchema,
   verifyEmailSchema,
 } = require('../../validators/auth');
 
@@ -32,6 +36,20 @@ const resendVerificationLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { success: false, message: 'Too many verification requests. Please try again later.', code: 'VERIFICATION_RATE_LIMITED' },
+});
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many password reset requests. Please try again later.', code: 'PASSWORD_RESET_RATE_LIMITED' },
+});
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many password reset attempts. Please try again later.', code: 'PASSWORD_RESET_RATE_LIMITED' },
 });
 
 async function issueSession(db, user, request) {
@@ -136,6 +154,49 @@ router.post('/resend-verification', resendVerificationLimiter, validate(resendVe
   response.json({ success: true, message: genericMessage });
 }));
 
+router.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), asyncHandler(async (request, response) => {
+  const genericMessage = 'If an account exists for that email address, a password reset link will be sent shortly.';
+  const user = await prisma.user.findUnique({
+    where: { email: request.body.email },
+    select: { id: true, fullName: true, email: true },
+  });
+  if (user) {
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - passwordReset.REQUEST_COOLDOWN_MS);
+    const issued = await prisma.$transaction(async (db) => {
+      const claimed = await db.user.updateMany({
+        where: {
+          id: user.id,
+          OR: [{ passwordResetRequestedAt: null }, { passwordResetRequestedAt: { lte: cutoff } }],
+        },
+        data: { passwordResetRequestedAt: now },
+      });
+      if (claimed.count !== 1) return null;
+      return { token: await passwordReset.issueToken(db, user.id, now) };
+    });
+    if (issued) {
+      setImmediate(() => {
+        emailService.sendPasswordResetEmail(user, issued.token).catch((error) => {
+          logger.error('password reset email dispatch failed', {
+            userId: user.id,
+            errorName: typeof error?.name === 'string' ? error.name : 'Error',
+          });
+        });
+      });
+    }
+  }
+  response.status(202).json({ success: true, message: genericMessage });
+}));
+
+router.post('/reset-password', resetPasswordLimiter, validate(resetPasswordSchema), asyncHandler(async (request, response) => {
+  const passwordHash = await bcrypt.hash(request.body.password, 12);
+  await passwordReset.resetPassword(request.body.token, passwordHash, {
+    ipAddress: clientIp(request),
+    userAgent: request.get('user-agent')?.slice(0, 500),
+  });
+  response.json({ success: true, message: 'Password reset successfully. Please sign in with your new password.' });
+}));
+
 router.post('/login', validate(loginSchema), asyncHandler(async (request, response) => {
   const { email, password } = request.body;
   
@@ -226,7 +287,8 @@ router.post('/change-password', authenticate, validate(passwordChangeSchema), as
   if (!user || !(await bcrypt.compare(request.body.currentPassword, user.passwordHash))) throw new AppError(401, 'Current password is incorrect.', 'INVALID_CREDENTIALS');
   const passwordHash = await bcrypt.hash(request.body.newPassword, 12);
   await prisma.$transaction(async (db) => {
-    await db.user.update({ where: { id: user.id }, data: { passwordHash } });
+    await db.user.update({ where: { id: user.id }, data: { passwordHash, passwordResetRequestedAt: null } });
+    await db.passwordResetToken.deleteMany({ where: { userId: user.id } });
     await db.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date(), revokedReason: 'PASSWORD_CHANGED' } });
     await audit(db, { actorId: user.id, targetUserId: user.id, action: 'PASSWORD_CHANGED', ipAddress: clientIp(request) });
   });

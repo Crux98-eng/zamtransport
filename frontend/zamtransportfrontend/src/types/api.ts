@@ -12,3 +12,4 @@ export type DriverRegisterPayload = RegisterPayload & { licenceNumber: string; l
 export type RegistrationResponse = { user: User; verificationEmailAccepted: boolean }
 export type EmailVerificationResponse = { role: 'COMMUTER' | 'DRIVER'; status: UserStatus; email: string; fullName: string }
 export type LoginPayload = { email: string; password: string }
+export type PasswordResetPayload = { token: string; password: string; confirmPassword: string }

@@ -40,7 +40,9 @@ export function LoginPage() {
             <button className="absolute right-2 top-2 rounded p-1 text-ink-500 hover:text-ink-900" type="button" onClick={() => setShowPassword((shown) => !shown)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
-          {errors.password && <p className="mt-1.5 text-xs text-danger-600">{errors.password.message}</p>}</label>{redirectState?.message && !errors.root && <Notice>{redirectState.message}</Notice>}{errors.root && <Notice>{errors.root.message}</Notice>}<Button className="w-full" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Signing in…' : 'Sign in'}</Button>
+          {errors.password && <p className="mt-1.5 text-xs text-danger-600">{errors.password.message}</p>}</label>
+        <p className="-mt-3 text-right text-sm"><Link className="font-bold text-brand-400 hover:text-brand-500" to="/forgot-password">Forgot password?</Link></p>
+        {redirectState?.message && !errors.root && <Notice>{redirectState.message}</Notice>}{errors.root && <Notice>{errors.root.message}</Notice>}<Button className="w-full" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Signing in…' : 'Sign in'}</Button>
       </form>
       <p className="mt-6 text-center text-sm text-ink-500">Need an account? <Link className="font-bold text-brand-400 hover:text-brand-500" to="/register">Request access</Link></p>
     </section>

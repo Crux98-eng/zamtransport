@@ -3,7 +3,7 @@ process.env.REFRESH_TOKEN_SECRET = 'a-very-long-test-refresh-secret-value';
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { driverRegisterSchema, registerSchema, resendVerificationSchema, verifyEmailSchema } = require('../../src/validators/auth');
+const { driverRegisterSchema, forgotPasswordSchema, registerSchema, resendVerificationSchema, resetPasswordSchema, verifyEmailSchema } = require('../../src/validators/auth');
 const { signAccessToken, verifyAccessToken, createRefreshToken, verifyRefreshToken, hashToken } = require('../../src/utils/tokens');
 
 const validRegistration = { fullName: 'Jane Commuter', email: 'JANE@example.com', password: 'Correct-Horse-7!', confirmPassword: 'Correct-Horse-7!' };
@@ -41,6 +41,15 @@ test('verification and resend inputs enforce token shape and normalized email', 
   assert.equal(verifyEmailSchema.safeParse({ token: 'A'.repeat(43) }).success, true);
   assert.equal(verifyEmailSchema.safeParse({ token: 'short' }).success, false);
   assert.equal(resendVerificationSchema.parse({ email: 'USER@example.com' }).email, 'user@example.com');
+});
+
+test('forgot and reset password inputs are normalized, strong, matched, and token-shaped', () => {
+  assert.equal(forgotPasswordSchema.parse({ email: 'USER@example.com' }).email, 'user@example.com');
+  const valid = { token: 'A'.repeat(43), password: 'Correct-Horse-7!', confirmPassword: 'Correct-Horse-7!' };
+  assert.equal(resetPasswordSchema.safeParse(valid).success, true);
+  assert.equal(resetPasswordSchema.safeParse({ ...valid, token: 'short' }).success, false);
+  assert.equal(resetPasswordSchema.safeParse({ ...valid, password: 'weak' }).success, false);
+  assert.equal(resetPasswordSchema.safeParse({ ...valid, confirmPassword: 'Different-Horse-8!' }).success, false);
 });
 
 test('access and refresh tokens carry minimal identity claims', () => {

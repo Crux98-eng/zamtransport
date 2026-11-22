@@ -134,6 +134,22 @@ function driverRejectedEmail(user, reason) {
   };
 }
 
+function passwordResetEmail(user, resetUrl) {
+  return {
+    subject: 'Reset your Zambia Transport password',
+    html: frame({
+      preheader: 'Use this secure link to reset your Zambia Transport password.',
+      heading: `Hello ${user.fullName},`,
+      intro: 'We received a request to reset the password for your Zambia Transport account.',
+      buttonLabel: 'Reset password',
+      buttonUrl: resetUrl,
+      details: 'This secure link expires in 30 minutes and can only be used once. If you did not request a reset, you can ignore this email.',
+      outro: 'For your security, your existing sessions will be signed out after the password changes.',
+    }),
+    text: `Hello ${user.fullName},\n\nReset your Zambia Transport password using this secure link:\n${resetUrl}\n\nThis link expires in 30 minutes and can only be used once. If you did not request a reset, ignore this email.`,
+  };
+}
+
 function smtpTransport() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -193,6 +209,13 @@ async function sendVerificationEmail(user, role, token) {
   return sendEmail({ ...template, to: user.email, purpose: `${role.toLowerCase()}_verification`, userId: user.id });
 }
 
+async function sendPasswordResetEmail(user, token) {
+  const resetUrl = new URL('/reset-password', baseUrl());
+  resetUrl.searchParams.set('token', token);
+  const template = passwordResetEmail(user, resetUrl.toString());
+  return sendEmail({ ...template, to: user.email, purpose: 'password_reset', userId: user.id });
+}
+
 async function sendDriverApprovalEmail(user) {
   const template = driverApprovedEmail(user, new URL('/login', baseUrl()).toString());
   return sendEmail({ ...template, to: user.email, purpose: 'driver_approval', userId: user.id });
@@ -219,9 +242,11 @@ module.exports = {
   driverRejectedEmail,
   escapeHtml,
   frame,
+  passwordResetEmail,
   sendDriverApprovalEmail,
   sendDriverRejectionEmail,
   sendEmail,
+  sendPasswordResetEmail,
   sendNotificationEmail,
   sendVerificationEmail,
   verificationEmail,
