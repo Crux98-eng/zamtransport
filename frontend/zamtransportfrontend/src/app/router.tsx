@@ -22,6 +22,7 @@ import { RoutesPage } from '@/features/routes/RoutesPage'
 import { TerminalsPage } from '@/features/terminals/TerminalsPage'
 import { TripsPage } from '@/features/trips/TripsPage'
 import { DriverTripsPage } from '@/features/trips/DriverTripsPage'
+import { ReportsPage } from '@/features/reports/ReportsPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
@@ -45,7 +46,7 @@ export const router = createBrowserRouter([
     { path: 'administration/users', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Users" description="System user accounts." endpoint="/admin/users" collection="users" /></RoleGuard> },
     { path: 'administration/approvals', element: <RoleGuard roles={['ADMIN']}><ApprovalsPage /></RoleGuard> },
     { path: 'administration/audit-logs', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Audit logs" description="Administrative activity recorded by the API." endpoint="/admin/audit-logs" collection="auditLogs" /></RoleGuard> },
-    { path: 'insights/reports', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Reports" description="Generated administrative reports." endpoint="/admin/reports" collection="reports" /></RoleGuard> },
+    { path: 'insights/reports', element: <RoleGuard roles={['ADMIN']}><ReportsPage /></RoleGuard> },
     { path: 'insights/analytics', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="Driver analytics" description="Performance analytics for drivers." endpoint="/admin/analytics/drivers" collection="items" /></RoleGuard> },
     { path: 'system/settings', element: <RoleGuard roles={['ADMIN']}><BackendModulePage title="System settings" description="Current administrative system configuration." endpoint="/admin/settings" /></RoleGuard> },
     { path: '*', element: <NotFoundPage /> },

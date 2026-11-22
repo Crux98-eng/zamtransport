@@ -41,6 +41,7 @@ router.post('/register', validate(registerSchema), asyncHandler(async (request, 
 
 router.post('/login', validate(loginSchema), asyncHandler(async (request, response) => {
   const { email, password } = request.body;
+  
   const user = await prisma.user.findUnique({ where: { email } });
   const valid = user && await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
