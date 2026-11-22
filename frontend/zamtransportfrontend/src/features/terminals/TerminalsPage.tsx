@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LoaderCircle, MapPin, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { LoaderCircle, MapPin, Plus, Search, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { EmptyState, ErrorState } from '@/components/shared/PageState'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { Card } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { Notice } from '@/components/ui/Notice'
@@ -90,7 +91,7 @@ export function TerminalsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Terminals" description="Create and maintain stops used by transport routes." actions={
-        <><Button variant="secondary" onClick={() => void query.refetch()}><RefreshCw size={16} />Refresh</Button><Button onClick={openCreate}><Plus size={16} />Add terminal</Button></>
+        <><RefreshButton onRefresh={() => void query.refetch()} refreshing={query.isFetching} /><Button onClick={openCreate}><Plus size={16} />Add terminal</Button></>
       } />
       {feedback && <Notice tone={feedback.tone} message={feedback.message} />}
       <Card className="p-4">

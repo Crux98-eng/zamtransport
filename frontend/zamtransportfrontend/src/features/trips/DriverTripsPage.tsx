@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LoaderCircle, RefreshCw } from 'lucide-react'
+import { LoaderCircle } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { EmptyState, ErrorState } from '@/components/shared/PageState'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { Card } from '@/components/ui/Card'
 import { Notice } from '@/components/ui/Notice'
 import { apiMessage } from '@/services/api'
@@ -80,7 +81,7 @@ export function DriverTripsPage() {
       <PageHeader
         title="My trips"
         description="Accept a scheduled trip, start it when boarding is complete, and end it on arrival."
-        actions={<Button variant="secondary" onClick={() => void tripsQuery.refetch()}><RefreshCw size={16} />Refresh</Button>}
+        actions={<RefreshButton onRefresh={() => void tripsQuery.refetch()} refreshing={tripsQuery.isFetching} />}
       />
       {feedback && <Notice tone={feedback.tone}>{feedback.message}</Notice>}
       {tripsQuery.isLoading && <Card className="grid min-h-64 place-items-center"><LoaderCircle className="animate-spin text-brand-400" size={28} /></Card>}

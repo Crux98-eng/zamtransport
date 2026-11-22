@@ -7,7 +7,6 @@ import {
   Eye,
   LoaderCircle,
   Plus,
-  RefreshCw,
   Search,
   ShieldAlert,
   ShieldCheck,
@@ -22,6 +21,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { TextField } from '@/components/forms/TextField'
 import { SelectField } from '@/components/forms/SelectField'
 import { Notice } from '@/components/ui/Notice'
@@ -153,19 +153,7 @@ export function VehiclesPage() {
         description="Register and manage fleet vehicles, capacity specifications, operational statuses, and driver assignments."
         actions={
           <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={refreshData}
-              disabled={vehiclesQuery.isFetching}
-              title="Refresh vehicle list"
-            >
-              <RefreshCw
-                size={16}
-                className={cn(vehiclesQuery.isFetching && 'animate-spin text-brand-400')}
-              />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
+            <RefreshButton size="sm" className="px-2 sm:px-3" onRefresh={refreshData} refreshing={vehiclesQuery.isFetching} />
             <Button
               onClick={() => setIsRegisterOpen(true)}
               className="gap-2"

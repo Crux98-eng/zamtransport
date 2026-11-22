@@ -23,6 +23,7 @@ import { TerminalsPage } from '@/features/terminals/TerminalsPage'
 import { TripsPage } from '@/features/trips/TripsPage'
 import { DriverTripsPage } from '@/features/trips/DriverTripsPage'
 import { ReportsPage } from '@/features/reports/ReportsPage'
+import { CommuterTripsPage } from '@/features/trips/CommuterTripsPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
     { path: 'profile', element: <ProfilePage /> },
     { path: 'operations/trips', element: <RoleGuard roles={['ADMIN']}><TripsPage /></RoleGuard> },
     { path: 'driver/trips', element: <RoleGuard roles={['DRIVER']}><DriverTripsPage /></RoleGuard> },
+    { path: 'commuter/trips', element: <RoleGuard roles={['COMMUTER']}><CommuterTripsPage /></RoleGuard> },
     { path: 'operations/schedules', element: <RoleGuard roles={['ADMIN']}><SchedulesPage /></RoleGuard> },
     { path: 'operations/routes', element: <RoleGuard roles={['ADMIN']}><RoutesPage /></RoleGuard> },
     { path: 'operations/terminals', element: <RoleGuard roles={['ADMIN']}><TerminalsPage /></RoleGuard> },

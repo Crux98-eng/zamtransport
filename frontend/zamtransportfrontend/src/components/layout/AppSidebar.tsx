@@ -14,15 +14,15 @@ export function AppSidebar({ collapsed, mobile = false, onClose, onToggle }: { c
 
   return (
   <aside className={cn('flex h-full flex-col border-r border-white/10 bg-[#151518] text-white transition-[width] duration-200', mobile ? 'w-72' : collapsed ? 'w-20' : 'w-72')} aria-label="Primary navigation">
-    <div className="flex h-20 items-center border-b border-white/10 px-4">
-      <NavLink to="/dashboard" onClick={onClose} className="flex min-w-0 items-center gap-3 text-lg font-extrabold tracking-tight">
+    <div className={cn('flex h-20 items-center border-b border-white/10 px-4', collapsed && !mobile && 'h-28 flex-col justify-center gap-2 px-2 py-3')}>
+      <NavLink to="/dashboard" onClick={onClose} className={cn('flex min-w-0 items-center gap-3 text-lg font-extrabold tracking-tight', collapsed && !mobile && 'justify-center')}>
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500 shadow-[0_8px_22px_rgba(255,90,43,.25)]">
          
           <img src={logo} alt="ZamTransport Logo" className="h-6 w-6" />
         </span>
         {(!collapsed || mobile) && <span className="truncate">ZamTransport</span>}
       </NavLink>
-      <button onClick={mobile ? onClose : onToggle} className="ml-auto grid h-9 w-9 place-items-center rounded-lg text-ink-500 hover:bg-white/10 hover:text-white" aria-label={mobile ? 'Close navigation' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+      <button onClick={mobile ? onClose : onToggle} className={cn('ml-auto grid h-9 w-9 place-items-center rounded-lg text-ink-500 hover:bg-white/10 hover:text-white', collapsed && !mobile && 'ml-0')} aria-label={mobile ? 'Close navigation' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
         {mobile ? <X size={19} /> : collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
       </button>
     </div>

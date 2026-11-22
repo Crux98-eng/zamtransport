@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LoaderCircle, Plus, RefreshCw, Search } from 'lucide-react'
+import { LoaderCircle, Plus, Search } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { EmptyState, ErrorState } from '@/components/shared/PageState'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { Card } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { Notice } from '@/components/ui/Notice'
@@ -150,7 +151,7 @@ export function TripsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Trips" description="Manage scheduled operations, assignments, and trip lifecycle." actions={<><Button variant="secondary" onClick={refresh}><RefreshCw size={16} />Refresh</Button><Button onClick={openCreate}><Plus size={16} />Create trip</Button></>} />
+      <PageHeader title="Trips" description="Manage scheduled operations, assignments, and trip lifecycle." actions={<><RefreshButton onRefresh={refresh} refreshing={tripsQuery.isFetching} /><Button onClick={openCreate}><Plus size={16} />Create trip</Button></>} />
       {feedback && <Notice tone={feedback.tone} message={feedback.message} />}
       <Card className="p-4"><div className="flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" size={16} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setPage(1); setTripCode(searchInput.trim()) } }} placeholder="Search trip code..." className="h-11 w-full rounded-lg border border-ink-100 bg-ink-50 pl-9 pr-3 text-sm outline-none focus:border-brand-400" /></div><select value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value as TripStatus | 'ALL') }} className="h-11 rounded-lg border border-ink-100 bg-ink-50 px-3 text-sm"><option value="ALL">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select><Button variant="secondary" onClick={() => { setPage(1); setTripCode(searchInput.trim()) }}>Search</Button></div></Card>
       {tripsQuery.isLoading && <Card className="grid min-h-64 place-items-center"><LoaderCircle className="animate-spin text-brand-400" size={28} /></Card>}

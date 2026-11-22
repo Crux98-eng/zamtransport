@@ -7,7 +7,6 @@ import {
   ShieldOff,
   AlertTriangle,
   Plus,
-  RefreshCw,
   Search,
   X,
   CreditCard,
@@ -22,6 +21,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { TextField } from '@/components/forms/TextField'
 import { SelectField } from '@/components/forms/SelectField'
 import { Notice } from '@/components/ui/Notice'
@@ -179,19 +179,7 @@ export function DriversPage() {
         description="Register and manage certified drivers, commercial licence compliance, and operational vehicle assignments."
         actions={
           <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={refreshData}
-              disabled={driversQuery.isFetching}
-              title="Refresh driver list"
-            >
-              <RefreshCw
-                size={16}
-                className={cn(driversQuery.isFetching && 'animate-spin text-brand-400')}
-              />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
+            <RefreshButton size="sm" className="px-2 sm:px-3" onRefresh={refreshData} refreshing={driversQuery.isFetching} />
             <Button
               onClick={() => setIsRegisterOpen(true)}
               className="gap-2"

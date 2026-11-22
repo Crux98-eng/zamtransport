@@ -8,7 +8,6 @@ import {
   LoaderCircle,
   MapPin,
   Plus,
-  RefreshCw,
   Route as RouteIcon,
   Search,
   Trash2,
@@ -17,6 +16,7 @@ import { EmptyState, ErrorState } from '@/components/shared/PageState'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { Card } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { Notice } from '@/components/ui/Notice'
@@ -117,6 +117,7 @@ export function RoutesPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null)
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [editingRoute, setEditingRoute] = useState<TransportRoute | null>(null)
   const [formValues, setFormValues] = useState<RouteFormValues>(() => initialForm())
@@ -331,9 +332,7 @@ export function RoutesPage() {
         status={pagination && <Badge tone="info">{pagination.total} active routes</Badge>}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={refreshRoutes} disabled={routesQuery.isFetching}>
-              <RefreshCw size={16} className={routesQuery.isFetching ? 'animate-spin' : ''} /> Refresh
-            </Button>
+            <RefreshButton size="sm" onRefresh={refreshRoutes} refreshing={routesQuery.isFetching} />
             <Button onClick={openCreateForm}><Plus size={17} /> New route</Button>
           </div>
         }
@@ -387,7 +386,7 @@ export function RoutesPage() {
               {routes.map((item) => (
                 <Card key={item.id} className={`p-4 transition ${selectedRouteId === item.id ? 'border-brand-300 ring-1 ring-brand-300' : ''}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => { setSelectedRouteId(item.id); setStopError(null) }}>
+                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => { setSelectedRouteId(item.id); setStopError(null); if (window.matchMedia('(max-width: 1279px)').matches) setMobileDetailsOpen(true) }}>
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="text-base font-bold text-ink-900">{item.name}</span>
                         <Badge tone="success">ACTIVE</Badge>
@@ -423,7 +422,7 @@ export function RoutesPage() {
               ))}
             </div>
 
-            <Card className="p-4 sm:p-5">
+            <Card className="hidden p-4 sm:p-5 xl:block">
               {!selectedRouteId && (
                 <div className="grid min-h-48 place-items-center text-center">
                   <div>
@@ -572,6 +571,74 @@ export function RoutesPage() {
               )}
             </Card>
           </div>
+
+          <Modal
+            isOpen={mobileDetailsOpen}
+            onClose={() => setMobileDetailsOpen(false)}
+            title={route?.name ?? 'Route details'}
+            description={route ? routeDescription(route) : 'Route information and ordered stops.'}
+            size="xl"
+          >
+            {routeQuery.isLoading && (
+              <div className="grid min-h-40 place-items-center text-ink-500">
+                <span className="flex items-center gap-2"><LoaderCircle size={19} className="animate-spin" /> Loading route details…</span>
+              </div>
+            )}
+            {routeQuery.isError && (
+              <ErrorState
+                title="Could not load route details"
+                message={apiMessage(routeQuery.error)}
+                action={<Button variant="secondary" onClick={() => void routeQuery.refetch()}>Try again</Button>}
+              />
+            )}
+            {route && (
+              <div className="space-y-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="success">ACTIVE</Badge>
+                  {route.routeCode && <Badge>{route.routeCode}</Badge>}
+                  <Badge tone="info">{routeStops.length} stops</Badge>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-ink-100 bg-ink-950 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-ink-500">Start</p>
+                    <p className="mt-1 font-semibold text-ink-900">{route.originStop?.name ?? route.origin}</p>
+                    <p className="mt-1 text-xs text-ink-500">{terminalCoordinates(route.originStop)}</p>
+                  </div>
+                  <div className="rounded-xl border border-ink-100 bg-ink-950 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-ink-500">Destination</p>
+                    <p className="mt-1 font-semibold text-ink-900">{route.destinationStop?.name ?? route.destination}</p>
+                    <p className="mt-1 text-xs text-ink-500">{terminalCoordinates(route.destinationStop)}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3 text-sm text-ink-600">
+                  {route.distanceKm != null && <span>{route.distanceKm} km</span>}
+                  {route.estimatedDuration != null && <span>{route.estimatedDuration} min estimated</span>}
+                </div>
+                {route.description && <p className="whitespace-pre-wrap text-sm leading-6 text-ink-600">{route.description}</p>}
+                <div>
+                  <h3 className="text-sm font-bold text-ink-900">Ordered stops</h3>
+                  {routeStops.length === 0 ? (
+                    <p className="mt-2 rounded-lg bg-ink-950 p-3 text-sm text-ink-500">No stops are attached to this route.</p>
+                  ) : (
+                    <ol className="mt-3 space-y-2">
+                      {routeStops.map((item) => (
+                        <li key={item.id} className="flex items-start gap-3 rounded-xl border border-ink-100 bg-ink-950 p-3">
+                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-bold text-brand-600">{item.sequence}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-ink-900">{item.stop.name}</p>
+                            <p className="mt-1 flex items-center gap-1 text-xs text-ink-500">
+                              <MapPin size={13} /> {item.stop.latitude}, {item.stop.longitude}
+                              {item.estimatedMinutesFromStart !== null && ` · ${item.estimatedMinutesFromStart} min from start`}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </div>
+            )}
+          </Modal>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-ink-500">

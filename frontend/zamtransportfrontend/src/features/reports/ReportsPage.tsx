@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, FileBarChart, LoaderCircle, Plus, RefreshCw } from 'lucide-react'
+import { Download, FileBarChart, LoaderCircle, Plus } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { EmptyState, ErrorState } from '@/components/shared/PageState'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { Card } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { Notice } from '@/components/ui/Notice'
@@ -105,7 +106,7 @@ export function ReportsPage() {
       <PageHeader
         title="Reports"
         description="Generate, review, and download administrative reports."
-        actions={<><Button variant="secondary" onClick={() => void reportsQuery.refetch()}><RefreshCw size={16} />Refresh</Button><Button onClick={openCreate}><Plus size={16} />Generate report</Button></>}
+        actions={<><RefreshButton onRefresh={() => void reportsQuery.refetch()} refreshing={reportsQuery.isFetching} /><Button onClick={openCreate}><Plus size={16} />Generate report</Button></>}
       />
 
       {feedback && <Notice tone={feedback.tone} message={feedback.message} />}

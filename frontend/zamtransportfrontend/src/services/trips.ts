@@ -48,4 +48,9 @@ export const tripsService = {
     const response = await api.patch<ApiEnvelope<{ trip: Trip }>>(`/driver/trips/${tripId}/complete`)
     return response.data.data.trip
   },
+  // ------- Commuter‑side helpers (read-only) --------
+  async commuterUpcomingList(params: { page?: number; limit?: number; routeId?: number; tripCode?: string }) {
+    const response = await api.get<ApiEnvelope<TripListResponse>>('/commuter/trips/upcoming', { params })
+    return response.data.data
+  },
 }

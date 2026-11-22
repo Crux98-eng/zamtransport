@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, ChevronLeft, ChevronRight, Clock3, LoaderCircle, RefreshCw, Search, UserRound, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Clock3, LoaderCircle, Search, UserRound, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { Card } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { Notice } from '@/components/ui/Notice'
@@ -96,16 +97,7 @@ export function ApprovalsPage() {
         description="Review new registrations and approve or reject pending accounts."
         status={pagination && <Badge tone={pagination.total ? 'warning' : 'success'}>{pagination.total} pending</Badge>}
         actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => void pendingQuery.refetch()}
-            disabled={pendingQuery.isFetching}
-            title="Refresh pending registrations"
-          >
-            <RefreshCw size={16} className={pendingQuery.isFetching ? 'animate-spin' : ''} />
-            Refresh
-          </Button>
+          <RefreshButton size="sm" onRefresh={() => void pendingQuery.refetch()} refreshing={pendingQuery.isFetching} />
         }
       />
 

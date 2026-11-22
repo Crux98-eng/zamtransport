@@ -13,6 +13,7 @@ export const navigationGroups: NavigationGroup[] = [
   { label: 'Operations', items: [
     { label: 'Trips', to: '/operations/trips', icon: ClipboardList, roles: ['ADMIN'] },
     { label: 'My trips', to: '/driver/trips', icon: ClipboardList, roles: ['DRIVER'] },
+    { label: 'Scheduled trips', to: '/commuter/trips', icon: ClipboardList, roles: ['COMMUTER'] },
     { label: 'Schedules', to: '/operations/schedules', icon: ClipboardList, roles: ['ADMIN'] },
     { label: 'Routes', to: '/operations/routes', icon: Route, roles: ['ADMIN'] },
     { label: 'Terminals', to: '/operations/terminals', icon: MapPinned, roles: ['ADMIN'] },
@@ -48,6 +49,7 @@ const pageLabels: Array<{ pattern: string; label: string; parent?: Breadcrumb }>
   { pattern: '/notifications', label: 'Notifications' },
   { pattern: '/profile', label: 'My profile' },
   { pattern: '/operations/trips', label: 'Trips' }, { pattern: '/operations/schedules', label: 'Schedules' }, { pattern: '/operations/routes', label: 'Routes' }, { pattern: '/operations/terminals', label: 'Terminals' },
+  { pattern: '/commuter/trips', label: 'Scheduled trips' },
   { pattern: '/fleet/vehicles', label: 'Vehicles' }, { pattern: '/fleet/drivers', label: 'Drivers' }, { pattern: '/fleet/assignments', label: 'Assignments' }, { pattern: '/monitoring/tracking', label: 'Live tracking' },
   { pattern: '/administration/users', label: 'Users' }, { pattern: '/administration/approvals', label: 'Approvals' }, { pattern: '/administration/audit-logs', label: 'Audit logs' }, { pattern: '/insights/reports', label: 'Reports' }, { pattern: '/insights/analytics', label: 'Analytics' }, { pattern: '/system/settings', label: 'Settings' },
 ]

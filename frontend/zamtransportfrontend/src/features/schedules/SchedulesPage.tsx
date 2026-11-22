@@ -8,7 +8,6 @@ import {
   Clock3,
   LoaderCircle,
   Plus,
-  RefreshCw,
   Route as RouteIcon,
   Search,
   WandSparkles,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { Card } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
 import { Notice } from '@/components/ui/Notice'
@@ -330,9 +330,7 @@ export function SchedulesPage() {
         status={pagination && <Badge tone="info">{pagination.total} schedules</Badge>}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={refreshSchedules} disabled={schedulesQuery.isFetching}>
-              <RefreshCw size={16} className={schedulesQuery.isFetching ? 'animate-spin' : ''} /> Refresh
-            </Button>
+            <RefreshButton size="sm" onRefresh={refreshSchedules} refreshing={schedulesQuery.isFetching} />
             <Button onClick={openCreateForm} disabled={routesQuery.isError || routes.length === 0}>
               <Plus size={17} /> New schedule
             </Button>
