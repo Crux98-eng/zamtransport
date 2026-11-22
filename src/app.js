@@ -18,6 +18,7 @@ const { errorHandler, notFound } = require('./middlewares/error-handler');
 const app = express();
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map((value) => value.trim()).filter(Boolean);
 app.disable('x-powered-by');
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: true, credentials: false }));
 app.use(express.json({ limit: '100kb' }));

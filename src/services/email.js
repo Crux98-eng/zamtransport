@@ -3,16 +3,44 @@ const { Resend } = require('resend');
 const logger = require('../utils/logger');
 
 const brandColor = '#f15a24';
-const baseUrl = () => process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
-const sender = () => process.env.EMAIL_FROM || process.env.SMTP_FROM;
+const baseUrl = () => (
+  process.env.FRONTEND_URL
+  || process.env.APP_URL
+  || process.env.CLIENT_URL
+  || 'http://localhost:5173'
+).trim();
+const resendSender = () => process.env.EMAIL_FROM?.trim();
+const smtpSender = () => process.env.SMTP_FROM?.trim() || resendSender();
 let resendClient;
+let resendClientApiKey;
 
 function smtpConfigured() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_FROM);
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT && smtpSender());
 }
 
 function configured() {
-  return Boolean(sender() && (process.env.RESEND_API_KEY || smtpConfigured()));
+  return process.env.RESEND_API_KEY?.trim()
+    ? Boolean(resendSender())
+    : smtpConfigured();
+}
+
+function providerErrorMetadata(error) {
+  const metadata = {};
+  const statusCode = Number(error?.statusCode ?? error?.status);
+  if (Number.isInteger(statusCode) && statusCode >= 400 && statusCode <= 599) {
+    metadata.statusCode = statusCode;
+  }
+  if (typeof error?.name === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(error.name)) {
+    metadata.errorName = error.name;
+  }
+  if (typeof error?.code === 'string' && /^[A-Za-z0-9_.-]{1,64}$/.test(error.code)) {
+    metadata.errorCode = error.code;
+  }
+  return metadata;
+}
+
+function logDeliveryFailure(purpose, userId, provider, error) {
+  logger.error('email delivery failed', { purpose, userId, provider, ...providerErrorMetadata(error) });
 }
 
 function escapeHtml(value) {
@@ -116,29 +144,44 @@ function smtpTransport() {
 }
 
 async function sendEmail({ to, subject, html, text, purpose, userId }) {
-  const provider = process.env.RESEND_API_KEY ? 'resend' : smtpConfigured() ? 'smtp' : 'none';
+  const provider = process.env.RESEND_API_KEY?.trim() ? 'resend' : smtpConfigured() ? 'smtp' : 'none';
   logger.info('email delivery attempt', { purpose, userId, provider });
-  if (!configured() || !to) {
-    logger.warn('email delivery unavailable', { purpose, userId, reason: !to ? 'RECIPIENT_MISSING' : 'EMAIL_NOT_CONFIGURED' });
-    return { accepted: false, reason: 'EMAIL_NOT_CONFIGURED' };
+  if (!to || !configured()) {
+    const reason = !to
+      ? 'RECIPIENT_MISSING'
+      : provider === 'resend' && !resendSender()
+        ? 'EMAIL_FROM_NOT_CONFIGURED'
+        : 'EMAIL_NOT_CONFIGURED';
+    logger.warn('email delivery unavailable', { purpose, userId, provider, reason });
+    return { accepted: false, reason };
   }
 
   try {
     if (provider === 'resend') {
-      resendClient ||= new Resend(process.env.RESEND_API_KEY);
-      const { data, error } = await resendClient.emails.send({ from: sender(), to, subject, html, text });
-      if (error) throw new Error(error.message || 'Resend rejected the email.');
-      if (!data?.id) throw new Error('Resend did not confirm acceptance of the email.');
+      const apiKey = process.env.RESEND_API_KEY.trim();
+      if (!resendClient || resendClientApiKey !== apiKey) {
+        resendClient = new Resend(apiKey);
+        resendClientApiKey = apiKey;
+      }
+      const { data, error } = await resendClient.emails.send({ from: resendSender(), to, subject, html, text });
+      if (error) {
+        logDeliveryFailure(purpose, userId, provider, error);
+        return { accepted: false, reason: 'DELIVERY_FAILED' };
+      }
+      if (!data?.id) {
+        logDeliveryFailure(purpose, userId, provider, new Error('Provider did not confirm acceptance.'));
+        return { accepted: false, reason: 'DELIVERY_FAILED' };
+      }
       logger.info('email accepted by provider', { purpose, userId, provider, messageId: data.id });
       return { accepted: true };
     }
 
-    const result = await smtpTransport().sendMail({ from: sender(), to, subject, html, text });
+    const result = await smtpTransport().sendMail({ from: smtpSender(), to, subject, html, text });
     if (!Array.isArray(result.accepted) || result.accepted.length === 0) throw new Error('SMTP server did not accept the recipient.');
     logger.info('email accepted by provider', { purpose, userId, provider });
     return { accepted: true };
   } catch (error) {
-    logger.error('email delivery failed', { purpose, userId, provider, error: error.message });
+    logDeliveryFailure(purpose, userId, provider, error);
     return { accepted: false, reason: 'DELIVERY_FAILED' };
   }
 }

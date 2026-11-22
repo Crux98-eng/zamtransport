@@ -37,11 +37,17 @@ stored. Links expire after 30 minutes, previous links are invalidated on resend,
 and resend requests have both per-IP rate limits and a per-account cooldown.
 
 Set `RESEND_API_KEY`, `EMAIL_FROM`, and `FRONTEND_URL` on the backend. `FRONTEND_URL`
-is the public frontend origin used in email links; `CLIENT_URL` is used as a
-backwards-compatible fallback and remains the API CORS setting. Resend is preferred.
+is the public frontend origin used in email links; `APP_URL` is an accepted fallback,
+then `CLIENT_URL` remains the backwards-compatible fallback and API CORS setting.
+Resend is preferred.
+When Resend is selected, `EMAIL_FROM` must be set explicitly; the SMTP sender is
+not used as a fallback. Use an address on a domain verified in Resend.
 Existing `SMTP_*` settings remain as a fallback. Never put `RESEND_API_KEY` in any
 `VITE_*` variable or frontend deployment environment. Verify the sender domain in
 Resend before testing delivery.
+
+The Express app trusts one reverse-proxy hop for client IP detection, as required
+behind Render's proxy. Rate limiting remains enabled and uses that resolved client IP.
 
 For local testing, use the same local origin for `FRONTEND_URL` and `CLIENT_URL`
 (`http://localhost:5173`), apply migrations with `npm run db:deploy`, start the API

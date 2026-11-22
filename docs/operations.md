@@ -61,6 +61,9 @@ depends on the installed dependency tree.
 ## Deployment and recovery
 
 Use Node 24+ with HTTPS terminated by the hosting platform or reverse proxy.
+The Express app trusts exactly one proxy hop for `req.ip`, matching Render's
+edge proxy and allowing rate limits to key on the originating client address.
+Do not increase this trust count unless the deployed proxy topology requires it.
 For Render, set the backend `DATABASE_URL`, token secrets, `CLIENT_URL` to the
 Vercel origin, `FRONTEND_URL` to the Vercel origin, `RESEND_API_KEY`, and
 `EMAIL_FROM`; verify the sender domain in Resend, then deploy with
@@ -70,6 +73,13 @@ Vercel origin, `FRONTEND_URL` to the Vercel origin, `RESEND_API_KEY`, and
 changing Vite environment variables because they are embedded at build time.
 Configure a writable `LOG_FILE` for persistent structured logs. Never commit
 `.env`.
+
+For Resend, use a current API key created in the correct Resend account and a
+sender such as `Zambia Transport <verified-address@your-domain>` whose domain is
+verified in Resend. Set both values in the Render backend environment, save, and
+redeploy/restart the service so the process loads the new key. Keep the key out
+of Vercel and source control. Failed sends are logged with safe provider metadata;
+they are not reported as accepted.
 
 This deployment uses PostgreSQL (the configured Prisma provider), not MySQL.
 Before a migration, take a tested PostgreSQL backup, for example:
